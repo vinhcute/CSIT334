@@ -1,0 +1,28 @@
+{
+  "name": "smart-parking-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "db:validate": "node --env-file=.env.example ./node_modules/prisma/build/index.js validate --schema prisma/schema.prisma",
+    "db:migrate": "node --env-file=.env.example ./node_modules/prisma/build/index.js migrate dev --schema prisma/schema.prisma",
+    "db:seed": "node --env-file=.env.example ../database/seeds/seed.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.18.0",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.7.0",
+    "prisma": "^6.18.0",
+    "typescript": "^5.9.3"
+  }
+}

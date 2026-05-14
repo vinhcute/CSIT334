@@ -1,0 +1,261 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  driver
+  admin
+}
+
+enum AccountStatus {
+  active
+  disabled
+  pending
+}
+
+enum SubscriptionType {
+  daily
+  weekly
+  monthly
+}
+
+enum SubscriptionStatus {
+  active
+  expired
+  cancelled
+  pending
+}
+
+enum SpotStatus {
+  available
+  occupied
+  reserved
+  maintenanceRequired
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  cancelled
+  expired
+  completed
+}
+
+enum DetectionEventType {
+  vehicleEntry
+  vehicleExit
+}
+
+enum NotificationType {
+  bookingConfirmation
+  bookingReminder
+  accountStatus
+}
+
+enum NotificationStatus {
+  pending
+  sent
+  read
+}
+
+enum IncidentStatus {
+  open
+  inReview
+  resolved
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String
+  email         String        @unique
+  universityId  String        @unique @map("university_id")
+  passwordHash  String        @map("password_hash")
+  role          UserRole      @default(driver)
+  accountStatus AccountStatus @default(pending) @map("account_status")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  vehicleProfiles VehicleProfile[]
+  subscriptions   Subscription[]
+  bookings        Booking[]
+  notifications   Notification[]
+  incidentReports IncidentReport[]
+
+  @@map("users")
+}
+
+model VehicleProfile {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  licensePlate String   @unique @map("license_plate")
+  vehicleMake  String?  @map("vehicle_make")
+  vehicleModel String?  @map("vehicle_model")
+  vehicleColor String?  @map("vehicle_color")
+  isPrimary    Boolean  @default(false) @map("is_primary")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("vehicle_profiles")
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  userId    String             @map("user_id")
+  type      SubscriptionType
+  status    SubscriptionStatus @default(pending)
+  startTime DateTime           @map("start_time")
+  endTime   DateTime           @map("end_time")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model ParkingZone {
+  id                      String   @id @default(cuid())
+  name                    String   @unique
+  description             String?
+  capacity                Int
+  distanceFromEntryMeters Int?     @map("distance_from_entry_meters")
+  displayOrder            Int      @default(0) @map("display_order")
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  parkingSpots     ParkingSpot[]
+  occupancyHistory OccupancyHistory[]
+
+  @@index([displayOrder])
+  @@map("parking_zones")
+}
+
+model ParkingSpot {
+  id        String     @id @default(cuid())
+  zoneId    String     @map("zone_id")
+  spotCode  String     @map("spot_code")
+  status    SpotStatus @default(available)
+  level     String?
+  rowLabel  String?    @map("row_label")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  zone ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  bookings        Booking[]
+  detectionEvents DetectionEvent[]
+  incidentReports IncidentReport[]
+
+  @@unique([zoneId, spotCode])
+  @@index([zoneId])
+  @@index([status])
+  @@map("parking_spots")
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  userId    String        @map("user_id")
+  spotId    String        @map("spot_id")
+  status    BookingStatus @default(pending)
+  startTime DateTime      @map("start_time")
+  endTime   DateTime      @map("end_time")
+  expiresAt DateTime?     @map("expires_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spot ParkingSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  notifications Notification[]
+
+  @@index([userId])
+  @@index([spotId, startTime, endTime])
+  @@index([status])
+  @@map("bookings")
+}
+
+model DetectionEvent {
+  id         String             @id @default(cuid())
+  spotId     String             @map("spot_id")
+  type       DetectionEventType
+  occurredAt DateTime           @default(now()) @map("occurred_at")
+  rawPayload Json?              @map("raw_payload")
+  createdAt  DateTime           @default(now()) @map("created_at")
+
+  spot ParkingSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@index([spotId])
+  @@index([occurredAt])
+  @@map("detection_events")
+}
+
+model OccupancyHistory {
+  id             String   @id @default(cuid())
+  zoneId         String   @map("zone_id")
+  recordedAt     DateTime @map("recorded_at")
+  capacity       Int
+  availableSpots Int      @map("available_spots")
+  occupiedSpots  Int      @map("occupied_spots")
+  reservedSpots  Int      @default(0) @map("reserved_spots")
+  occupancyRate  Decimal  @map("occupancy_rate") @db.Decimal(5, 2)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  zone ParkingZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  @@index([zoneId, recordedAt])
+  @@index([recordedAt])
+  @@map("occupancy_history")
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  userId    String             @map("user_id")
+  bookingId String?            @map("booking_id")
+  type      NotificationType
+  status    NotificationStatus @default(pending)
+  title     String
+  message   String
+  sentAt    DateTime?          @map("sent_at")
+  readAt    DateTime?          @map("read_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+  updatedAt DateTime           @updatedAt @map("updated_at")
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([bookingId])
+  @@index([status])
+  @@map("notifications")
+}
+
+model IncidentReport {
+  id          String         @id @default(cuid())
+  userId      String         @map("user_id")
+  spotId      String?        @map("spot_id")
+  status      IncidentStatus @default(open)
+  issueType   String         @map("issue_type")
+  description String
+  resolution  String?
+  resolvedAt  DateTime?      @map("resolved_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spot ParkingSpot? @relation(fields: [spotId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([spotId])
+  @@index([status])
+  @@map("incident_reports")
+}
