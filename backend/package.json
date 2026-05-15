@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
+    "prestart": "npm run build",
     "start": "node dist/index.js",
     "test": "npm run build && node --test tests/*.test.mjs",
     "db:validate": "node --env-file=.env.example ./node_modules/prisma/build/index.js validate --schema prisma/schema.prisma",

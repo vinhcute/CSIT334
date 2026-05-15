@@ -27,6 +27,15 @@ export class ApiError extends Error {
   }
 }
 
+export class ApiResponseFormatError extends Error {
+  constructor(public readonly status: number) {
+    super(
+      `The API returned an unexpected non-JSON response. Status ${status}. Rebuild and restart the backend server so the latest routes are running, then retry.`,
+    );
+    this.name = "ApiResponseFormatError";
+  }
+}
+
 export function createLocalStorageTokenStore(storageKey = "unipark.authToken"): TokenStore {
   return {
     getToken: () => {
@@ -107,8 +116,6 @@ async function parseResponseBody(response: Response): Promise<unknown> {
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error(
-      "The API returned an unexpected non-JSON response. Make sure the backend server is running on http://127.0.0.1:3000, then restart the frontend dev server.",
-    );
+    throw new ApiResponseFormatError(response.status);
   }
 }

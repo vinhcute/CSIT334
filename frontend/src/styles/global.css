@@ -140,7 +140,8 @@ button:disabled {
   color: var(--color-danger);
 }
 
-.form-field input {
+.form-field input,
+.form-field select {
   width: 100%;
   min-width: 0;
   border: 0;
@@ -153,6 +154,11 @@ button:disabled {
 
 .form-field input::placeholder {
   color: var(--color-muted);
+}
+
+.form-field select {
+  appearance: none;
+  cursor: pointer;
 }
 
 .form-error {
@@ -383,6 +389,443 @@ button:disabled {
 .status-card strong {
   color: var(--color-success);
   font-size: 1.5rem;
+}
+
+.parking-dashboard-page {
+  display: grid;
+  gap: 28px;
+  margin-top: 48px;
+  margin-left: 30px;
+  max-width: 760px;
+}
+
+.parking-dashboard-header {
+  display: grid;
+  gap: 4px;
+}
+
+.parking-dashboard-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 2.125rem;
+  line-height: 1.2;
+}
+
+.parking-dashboard-header p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.parking-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 160px));
+  gap: 20px;
+}
+
+.parking-stat-card {
+  display: grid;
+  align-content: center;
+  gap: 10px;
+  min-height: 90px;
+  padding: 15px 17px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface);
+}
+
+.parking-stat-card span {
+  color: var(--color-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.parking-stat-card strong {
+  color: var(--color-heading);
+  font-size: 1.625rem;
+  line-height: 1;
+}
+
+.zone-availability-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.zone-availability-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+}
+
+.zone-availability-heading h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.zone-availability-heading p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.zone-availability-list {
+  display: grid;
+  gap: 22px;
+}
+
+.zone-availability-row {
+  display: grid;
+  gap: 8px;
+  max-width: 520px;
+}
+
+.zone-availability-copy {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.zone-availability-copy h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.zone-availability-copy p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.zone-progress-line {
+  overflow: hidden;
+  width: min(100%, 260px);
+  height: 8px;
+  border-radius: 999px;
+  background: #f5f5f5;
+}
+
+.zone-progress-fill {
+  display: block;
+  height: 100%;
+  min-width: 8px;
+  border-radius: inherit;
+  background: var(--color-info);
+}
+
+.zone-progress-fill-open {
+  background: var(--color-success);
+}
+
+.zone-progress-fill-limited {
+  background: var(--color-warning);
+}
+
+.zone-progress-fill-full {
+  background: var(--color-danger);
+}
+
+.zone-availability-count {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.availability-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  width: max-content;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--color-badge-surface);
+  color: var(--color-info);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.availability-status::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.availability-status-open {
+  color: var(--color-success);
+}
+
+.availability-status-limited {
+  color: var(--color-warning);
+}
+
+.availability-status-full {
+  color: var(--color-danger);
+}
+
+.availability-status-empty {
+  color: var(--color-muted);
+}
+
+.dashboard-state {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 360px);
+  min-height: 180px;
+  margin-top: 58px;
+  margin-left: 30px;
+  padding: 27px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.dashboard-state h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.dashboard-state p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.dashboard-state-error h2 {
+  color: var(--color-danger);
+}
+
+.parking-map-page {
+  display: grid;
+  gap: 32px;
+  margin-top: 38px;
+  margin-left: 30px;
+  max-width: 880px;
+}
+
+.parking-map-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.parking-map-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.parking-map-header p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.parking-map-filter {
+  display: grid;
+  width: 180px;
+  min-height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 17px;
+  background: var(--color-surface);
+}
+
+.parking-map-filter select {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.parking-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 560px) 240px;
+  gap: 30px;
+  align-items: start;
+}
+
+.parking-map-grid {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(44px, 1fr));
+  gap: 10px;
+  max-width: 560px;
+}
+
+.parking-map-spot {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  min-height: 46px;
+  border: 1.5px solid currentColor;
+  border-radius: 6px;
+  padding: 6px;
+  background: var(--color-surface);
+  color: var(--color-info);
+}
+
+.parking-map-spot span {
+  color: var(--color-heading);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.parking-map-spot-selected {
+  outline: 3px solid var(--color-primary-soft);
+}
+
+.parking-map-spot-available,
+.map-status-available {
+  color: var(--color-success);
+}
+
+.parking-map-spot-occupied,
+.map-status-occupied {
+  color: #f04545;
+}
+
+.parking-map-spot-reserved,
+.map-status-reserved {
+  color: var(--color-warning);
+}
+
+.parking-map-spot-maintenanceRequired,
+.map-status-maintenanceRequired {
+  color: var(--color-info);
+}
+
+.parking-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 38px;
+}
+
+.map-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: var(--color-badge-surface);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.map-status::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.selected-spot-panel {
+  display: grid;
+  gap: 16px;
+  min-height: 236px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.selected-spot-panel h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.375rem;
+  line-height: 1.25;
+}
+
+.selected-spot-copy {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.selected-spot-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
+.selected-spot-list div {
+  display: grid;
+  gap: 2px;
+}
+
+.selected-spot-list dt {
+  color: var(--color-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.selected-spot-list dd {
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.map-state {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 360px);
+  min-height: 180px;
+  margin-top: 58px;
+  margin-left: 30px;
+  padding: 27px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.map-state h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.map-state p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.map-state-error h2 {
+  color: var(--color-danger);
 }
 
 .account-page {
@@ -617,6 +1060,19 @@ button:disabled {
   font-weight: 700;
 }
 
+.inventory-table-title-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.compact-button {
+  min-height: 32px;
+  padding: 0 14px;
+  font-size: 0.75rem;
+}
+
 .inventory-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(90px, 1fr));
@@ -627,6 +1083,10 @@ button:disabled {
   color: var(--color-text);
   font-size: 0.75rem;
   font-weight: 500;
+}
+
+.inventory-row-spots {
+  grid-template-columns: 1.1fr 1.1fr 0.9fr 1.2fr 1fr;
 }
 
 .inventory-row-heading {
@@ -649,6 +1109,98 @@ button:disabled {
   color: var(--color-muted);
   font-size: 0.6875rem;
   font-weight: 500;
+}
+
+.inventory-row-actions {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.text-button-danger {
+  color: var(--color-danger);
+}
+
+.inventory-management-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 760px) 280px;
+  gap: 24px;
+  align-items: start;
+}
+
+.zone-editor-panel {
+  display: grid;
+  gap: 16px;
+  width: 280px;
+  min-height: 350px;
+  padding: 22px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.spot-editor-panel {
+  align-content: start;
+}
+
+.spot-editor-panel .parking-status {
+  justify-self: start;
+}
+
+.zone-editor-panel h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.zone-editor-panel .form-field {
+  min-height: 66px;
+  padding: 9px 12px 10px;
+}
+
+.zone-editor-panel .form-field-error {
+  min-height: 86px;
+}
+
+.zone-editor-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.zone-editor-actions .primary-button,
+.zone-editor-actions .secondary-button {
+  width: 100%;
+}
+
+.zone-editor-actions .primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.inventory-feedback,
+.inventory-confirmation {
+  width: min(100%, 760px);
+}
+
+.inventory-empty-inline {
+  display: grid;
+  gap: 8px;
+  padding: 26px 22px;
+  border-top: 1px solid var(--color-border);
+}
+
+.inventory-empty-inline h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1rem;
+}
+
+.inventory-empty-inline p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }
 
 .parking-status {
@@ -715,6 +1267,146 @@ button:disabled {
 
 .inventory-state-error h2,
 .inventory-state-permission h2 {
+  color: var(--color-danger);
+}
+
+.sensor-events-page {
+  display: grid;
+  gap: 18px;
+  margin-top: 38px;
+  margin-left: 30px;
+  max-width: 880px;
+}
+
+.sensor-events-header {
+  display: grid;
+  gap: 4px;
+}
+
+.sensor-events-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.sensor-events-header p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.sensor-events-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 500px) minmax(240px, 280px);
+  gap: 24px;
+  align-items: start;
+}
+
+.sensor-panel,
+.sensor-feed-panel {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  padding: 22px 20px;
+  background: var(--color-surface);
+}
+
+.sensor-panel h2,
+.sensor-feed-panel h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.sensor-panel .primary-button {
+  width: 100%;
+}
+
+.sensor-feedback {
+  width: min(100%, 760px);
+}
+
+.sensor-updated-spot {
+  display: grid;
+  gap: 12px;
+}
+
+.sensor-updated-spot strong {
+  color: var(--color-heading);
+  font-size: 1.625rem;
+  line-height: 1.1;
+}
+
+.sensor-updated-spot .parking-status {
+  justify-self: start;
+}
+
+.sensor-muted {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.sensor-feed-panel {
+  width: min(100%, 760px);
+}
+
+.sensor-feed-list {
+  display: grid;
+  border-top: 1px solid var(--color-border);
+}
+
+.sensor-feed-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 1fr 140px;
+  gap: 14px;
+  align-items: center;
+  min-height: 48px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sensor-feed-row > span:first-child {
+  color: var(--color-muted);
+  font-weight: 700;
+}
+
+.sensor-state {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 360px);
+  min-height: 180px;
+  margin-top: 58px;
+  margin-left: 30px;
+  padding: 27px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.sensor-state h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.sensor-state p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.sensor-state-error h2,
+.sensor-state-permission h2 {
   color: var(--color-danger);
 }
 
@@ -980,6 +1672,44 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .parking-dashboard-page,
+  .dashboard-state {
+    margin-left: 0;
+  }
+
+  .parking-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zone-availability-heading,
+  .zone-availability-copy {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .parking-map-page,
+  .map-state {
+    margin-left: 0;
+  }
+
+  .parking-map-header,
+  .parking-map-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .parking-map-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .parking-map-filter {
+    width: 100%;
+  }
+
+  .parking-map-grid {
+    grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  }
+
   .account-grid,
   .profile-list,
   .vehicle-form,
@@ -992,6 +1722,8 @@ button:disabled {
   .admin-users-page,
   .admin-inventory-page,
   .inventory-state,
+  .sensor-events-page,
+  .sensor-state,
   .account-state {
     margin-left: 0;
   }
@@ -1000,6 +1732,23 @@ button:disabled {
     grid-template-columns: 1fr;
     gap: 6px;
     padding: 14px 22px;
+  }
+
+  .inventory-row-spots {
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zone-editor-panel {
+    width: 100%;
+  }
+
+  .sensor-events-grid,
+  .sensor-feed-row {
+    grid-template-columns: 1fr;
   }
 
   .admin-confirmation {

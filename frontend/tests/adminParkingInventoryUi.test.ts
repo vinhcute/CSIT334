@@ -1,13 +1,16 @@
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
-import { ApiError } from "../src/services/apiClient.js";
+import { ApiError, ApiResponseFormatError } from "../src/services/apiClient.js";
 import type { OccupancySummary } from "../src/services/occupancyApi.js";
 import {
   AdminParkingInventoryPage,
   canViewAdminParkingInventory,
+  getOptionalOccupancyWarningMessage,
   getParkingInventoryErrorMessage,
   getParkingSpotStatusClass,
   getParkingSpotStatusText,
+  getZoneAvailableSpotText,
+  getZoneOperationalStatus,
   hasParkingInventory,
   mergeZonesWithOccupancy,
   type ParkingInventoryViewModel,
@@ -130,6 +133,31 @@ describe("admin parking inventory UI shell", () => {
     expect(getParkingInventoryErrorMessage(apiError)).toContain("capacity");
     expect(getParkingInventoryErrorMessage(new Error("network"))).toContain(
       "Unable to load parking inventory",
+    );
+    expect(getParkingInventoryErrorMessage(new TypeError("fetch failed"))).toContain(
+      "http://127.0.0.1:3000",
+    );
+    expect(getParkingInventoryErrorMessage(new ApiResponseFormatError(404))).toContain(
+      "Rebuild and restart",
+    );
+  });
+
+  it("keeps inventory readable when occupancy summary is unavailable", () => {
+    const zone: ParkingZone = {
+      id: "zone-1",
+      name: "Zone A",
+      description: null,
+      capacity: 10,
+      distanceFromEntryMeters: null,
+      displayOrder: 1,
+      createdAt: "2026-05-15T00:00:00.000Z",
+      updatedAt: "2026-05-15T00:00:00.000Z",
+    };
+
+    expect(getZoneAvailableSpotText(zone)).toBe("Not available");
+    expect(getZoneOperationalStatus(zone)).toBe("Not available");
+    expect(getOptionalOccupancyWarningMessage(new TypeError("fetch failed"))).toContain(
+      "Zones and spots are still shown",
     );
   });
 });

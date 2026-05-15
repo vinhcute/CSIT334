@@ -4,10 +4,13 @@ import {
   AdminParkingInventoryPage,
   type AdminParkingInventoryView,
 } from "./features/admin/AdminParkingInventoryPage.js";
+import { AdminSensorEventsPage } from "./features/admin/AdminSensorEventsPage.js";
 import { AdminUsersPage } from "./features/admin/AdminUsersPage.js";
 import { LoginPage } from "./features/auth/LoginPage.js";
 import { RegisterPage } from "./features/auth/RegisterPage.js";
 import { useAuthState } from "./features/auth/authState.js";
+import { ParkingDashboardPage } from "./features/parking/ParkingDashboardPage.js";
+import { ParkingMapPage } from "./features/parking/ParkingMapPage.js";
 import type { UserRole } from "./features/auth/authTypes.js";
 
 const driverSidebarItems = [
@@ -26,6 +29,7 @@ const adminSidebarItems = [
   "Users",
   "Zones",
   "Spots",
+  "Sensors",
   "Bookings",
   "Incidents",
   "Analytics",
@@ -38,7 +42,6 @@ type AdminSection = (typeof adminSidebarItems)[number];
 type AppSection = DriverSection | AdminSection;
 
 const accountViewBySection: Partial<Record<AppSection, AccountView>> = {
-  Dashboard: "Dashboard",
   "My Vehicles": "Vehicles",
   "Subscription / Permit": "Subscription",
 };
@@ -144,13 +147,19 @@ export function App() {
           </section>
         ) : null}
 
-        {effectiveSection === "Users" ? (
+        {effectiveSection === "Dashboard" ? (
+          <ParkingDashboardPage />
+        ) : effectiveSection === "Parking Map" ? (
+          <ParkingMapPage />
+        ) : effectiveSection === "Users" ? (
           <AdminUsersPage />
         ) : isAdminParkingInventorySection(effectiveSection) ? (
           <AdminParkingInventoryPage
             initialView={getAdminParkingInventoryView(effectiveSection)}
             onReturnDashboard={() => setActiveSection("Dashboard")}
           />
+        ) : effectiveSection === "Sensors" ? (
+          <AdminSensorEventsPage />
         ) : effectiveSection === "Settings" ? (
           <DeferredState title="Settings" />
         ) : user.role === "admin" ? (
@@ -186,6 +195,10 @@ function getPageTitle(section: AppSection): string {
     return "Spot Management";
   }
 
+  if (section === "Sensors") {
+    return "Simulated Sensor Events";
+  }
+
   if (section === "My Vehicles") {
     return "Vehicles";
   }
@@ -206,7 +219,13 @@ function getAdminParkingInventoryView(section: "Zones" | "Spots"): AdminParkingI
 }
 
 function shouldShowDefaultIntro(section: AppSection): boolean {
-  return section !== "Users" && !isAdminParkingInventorySection(section);
+  return (
+    section !== "Dashboard" &&
+    section !== "Parking Map" &&
+    section !== "Users" &&
+    section !== "Sensors" &&
+    !isAdminParkingInventorySection(section)
+  );
 }
 
 function DeferredState({ title }: { title: string }) {
