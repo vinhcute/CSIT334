@@ -273,8 +273,6 @@ test("Phase 02 end-to-end identity and account-management path works", async () 
 test("Phase 02 does not expose Phase 3 or later feature routes early", async () => {
   const app = await createApp();
   const unavailableRoutes = [
-    "/api/parking-zones",
-    "/api/parking-spots",
     "/api/detection-events",
     "/api/occupancy-history",
     "/api/bookings",

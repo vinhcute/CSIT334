@@ -3,8 +3,13 @@ import { pathToFileURL } from "node:url";
 import { getEnv } from "./config/env.js";
 import { createAdminUsersRouter } from "./routes/adminUsers.js";
 import { createAuthRouter } from "./routes/auth.js";
+import { createDetectionEventsRouter } from "./routes/detectionEvents.js";
 import { createHealthRouter } from "./routes/health.js";
+import { createOccupancyRouter } from "./routes/occupancy.js";
+import { createParkingEventsRouter } from "./routes/parkingEvents.js";
 import { createPasswordRouter } from "./routes/password.js";
+import { createParkingSpotsRouter } from "./routes/parkingSpots.js";
+import { createParkingZonesRouter } from "./routes/parkingZones.js";
 import { createSubscriptionsRouter } from "./routes/subscriptions.js";
 import { createUsersRouter } from "./routes/users.js";
 import { createVehicleProfilesRouter } from "./routes/vehicleProfiles.js";
@@ -25,6 +30,11 @@ export function createApp(dependencies: AppDependencies = {}): express.Express {
   app.use(createSubscriptionsRouter());
   app.use(createPasswordRouter());
   app.use(createAdminUsersRouter());
+  app.use(createParkingZonesRouter());
+  app.use(createParkingSpotsRouter());
+  app.use(createDetectionEventsRouter());
+  app.use(createOccupancyRouter());
+  app.use(createParkingEventsRouter());
 
   return app;
 }
