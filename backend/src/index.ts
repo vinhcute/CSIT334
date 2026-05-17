@@ -2,9 +2,11 @@ import express from "express";
 import { pathToFileURL } from "node:url";
 import { getEnv } from "./config/env.js";
 import { createAdminUsersRouter } from "./routes/adminUsers.js";
+import { createAnalyticsRouter } from "./routes/analytics.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { createDetectionEventsRouter } from "./routes/detectionEvents.js";
 import { createHealthRouter } from "./routes/health.js";
+import { createIncidentReportsRouter } from "./routes/incidentReports.js";
 import { createOccupancyRouter } from "./routes/occupancy.js";
 import { createParkingEventsRouter } from "./routes/parkingEvents.js";
 import { createPasswordRouter } from "./routes/password.js";
@@ -30,11 +32,13 @@ export function createApp(dependencies: AppDependencies = {}): express.Express {
   app.use(createSubscriptionsRouter());
   app.use(createPasswordRouter());
   app.use(createAdminUsersRouter());
+  app.use(createAnalyticsRouter());
   app.use(createParkingZonesRouter());
   app.use(createParkingSpotsRouter());
   app.use(createDetectionEventsRouter());
   app.use(createOccupancyRouter());
   app.use(createParkingEventsRouter());
+  app.use(createIncidentReportsRouter());
 
   return app;
 }

@@ -828,6 +828,142 @@ button:disabled {
   color: var(--color-danger);
 }
 
+.report-issue-page {
+  display: grid;
+  gap: 24px;
+  margin-top: 38px;
+  margin-left: 30px;
+  max-width: 880px;
+}
+
+.report-issue-header {
+  display: grid;
+  gap: 4px;
+  max-width: 600px;
+}
+
+.report-issue-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.report-issue-header p:not(.eyebrow) {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.report-issue-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 500px) 260px;
+  gap: 28px;
+  align-items: start;
+}
+
+.report-issue-card,
+.report-summary-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  padding: 22px 20px;
+  background: var(--color-surface);
+}
+
+.report-location-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-description-field {
+  display: grid;
+  gap: 8px;
+  min-height: 150px;
+  padding: 11px 14px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-soft-surface);
+}
+
+.report-description-field-error {
+  border: 1.5px solid var(--color-danger);
+}
+
+.report-description-field-error .form-label {
+  color: var(--color-danger);
+}
+
+.report-description-field textarea {
+  min-height: 92px;
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.report-description-field textarea::placeholder {
+  color: var(--color-muted);
+}
+
+.report-submit-button {
+  width: 100%;
+}
+
+.report-summary-card h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.report-summary-card p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.report-state {
+  display: grid;
+  gap: 18px;
+  width: min(100%, 360px);
+  min-height: 180px;
+  margin-top: 58px;
+  margin-left: 30px;
+  padding: 27px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.report-state h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.125rem;
+  line-height: 1.25;
+}
+
+.report-state p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.report-state-error h2 {
+  color: var(--color-danger);
+}
+
 .account-page {
   display: grid;
   gap: 20px;
@@ -1410,6 +1546,454 @@ button:disabled {
   color: var(--color-danger);
 }
 
+.admin-incidents-page {
+  display: grid;
+  gap: 18px;
+  margin-top: 38px;
+  margin-left: 30px;
+  max-width: 920px;
+}
+
+.admin-incidents-header {
+  display: grid;
+  gap: 4px;
+  max-width: 680px;
+}
+
+.admin-incidents-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.admin-incidents-header p:not(.eyebrow) {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.incident-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 160px));
+  gap: 20px;
+}
+
+.incident-feedback {
+  width: min(100%, 760px);
+}
+
+.admin-incidents-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 700px) 260px;
+  gap: 24px;
+  align-items: start;
+}
+
+.incident-table-card,
+.incident-review-panel {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: var(--color-surface);
+}
+
+.incident-table-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px 14px;
+}
+
+.incident-table-title h2,
+.incident-review-panel h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.incident-table-title p,
+.incident-review-panel p {
+  margin: 5px 0 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.incident-filter {
+  display: grid;
+  min-width: 150px;
+  min-height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--color-soft-surface);
+}
+
+.incident-filter select {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.incident-list {
+  display: grid;
+  border-top: 1px solid var(--color-border);
+}
+
+.incident-row {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr 0.9fr 0.75fr 1.15fr;
+  gap: 14px;
+  align-items: center;
+  min-height: 76px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.incident-row-heading {
+  min-height: 38px;
+  background: var(--color-soft-surface);
+  color: var(--color-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.incident-row strong {
+  display: block;
+  color: var(--color-heading);
+  font-weight: 800;
+}
+
+.incident-row small {
+  display: block;
+  margin-top: 5px;
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.incident-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.incident-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 12px;
+  background: var(--color-badge-surface);
+  color: var(--color-primary-link);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.incident-status::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.incident-status-open {
+  color: var(--color-danger);
+}
+
+.incident-status-inReview {
+  color: var(--color-warning);
+}
+
+.incident-status-resolved {
+  color: var(--color-success);
+}
+
+.incident-resolution-note {
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.incident-review-panel {
+  align-content: start;
+  gap: 16px;
+  padding: 22px 20px;
+}
+
+.incident-panel-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.incident-panel-actions .primary-button,
+.incident-panel-actions .secondary-button {
+  width: 100%;
+}
+
+.admin-analytics-page {
+  display: grid;
+  gap: 18px;
+  margin-top: 38px;
+  margin-left: 30px;
+  max-width: 920px;
+}
+
+.admin-analytics-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.admin-analytics-header h1 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.75rem;
+  line-height: 1.2;
+}
+
+.admin-analytics-header p:not(.eyebrow) {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.analytics-range-filter {
+  display: grid;
+  width: 150px;
+  min-height: 34px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 14px;
+  background: var(--color-soft-surface);
+}
+
+.analytics-range-filter select {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.analytics-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 160px));
+  gap: 20px;
+}
+
+.admin-analytics-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 580px) 280px;
+  gap: 24px;
+  align-items: start;
+}
+
+.analytics-panel {
+  display: grid;
+  gap: 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  padding: 22px 20px;
+  background: var(--color-surface);
+}
+
+.analytics-trend-panel,
+.zone-utilisation-panel {
+  grid-column: 1;
+}
+
+.peak-hour-panel {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.analytics-panel-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.analytics-panel-heading h2 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.25rem;
+  line-height: 1.2;
+}
+
+.analytics-panel-heading p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.trend-chart {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  align-items: end;
+  min-height: 210px;
+  padding: 12px 0 0;
+}
+
+.trend-bar-column {
+  display: grid;
+  grid-template-rows: auto 150px auto;
+  gap: 8px;
+  align-items: end;
+  justify-items: center;
+}
+
+.trend-bar-value,
+.trend-bar-label {
+  color: var(--color-muted);
+  font-size: 0.6875rem;
+  font-weight: 800;
+}
+
+.trend-bar {
+  display: block;
+  width: 36px;
+  min-height: 18px;
+  border-radius: 999px 999px 6px 6px;
+  background: var(--color-primary);
+}
+
+.peak-hour-card {
+  display: grid;
+  gap: 10px;
+  min-height: 180px;
+  align-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 20px;
+  background: var(--color-primary-soft);
+}
+
+.peak-hour-card strong {
+  color: var(--color-heading);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.peak-hour-card span {
+  color: var(--color-primary-link);
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+
+.peak-hour-card p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.zone-utilisation-list {
+  display: grid;
+  gap: 18px;
+}
+
+.zone-utilisation-row {
+  display: grid;
+  gap: 8px;
+}
+
+.zone-utilisation-copy {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.zone-utilisation-copy h3 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+}
+
+.zone-utilisation-copy p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.analytics-progress-line {
+  width: 100%;
+}
+
+.analytics-progress-fill {
+  min-width: 8px;
+}
+
+.analytics-progress-fill-open {
+  background: var(--color-success);
+}
+
+.analytics-progress-fill-busy {
+  background: var(--color-warning);
+}
+
+.analytics-progress-fill-critical {
+  background: var(--color-danger);
+}
+
+.utilisation-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 26px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--color-badge-surface);
+  color: var(--color-success);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.utilisation-status::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.utilisation-status-busy {
+  color: var(--color-warning);
+}
+
+.utilisation-status-critical {
+  color: var(--color-danger);
+}
+
 .account-card,
 .account-state {
   border: 1px solid var(--color-border);
@@ -1688,7 +2272,9 @@ button:disabled {
   }
 
   .parking-map-page,
-  .map-state {
+  .map-state,
+  .report-issue-page,
+  .report-state {
     margin-left: 0;
   }
 
@@ -1708,6 +2294,11 @@ button:disabled {
 
   .parking-map-grid {
     grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+  }
+
+  .report-issue-layout,
+  .report-location-grid {
+    grid-template-columns: 1fr;
   }
 
   .account-grid,
@@ -1747,8 +2338,49 @@ button:disabled {
   }
 
   .sensor-events-grid,
-  .sensor-feed-row {
+  .sensor-feed-row,
+  .admin-incidents-layout,
+  .incident-row,
+  .admin-analytics-layout {
     grid-template-columns: 1fr;
+  }
+
+  .admin-incidents-page,
+  .admin-analytics-page {
+    margin-left: 0;
+  }
+
+  .incident-stat-grid,
+  .analytics-stat-grid,
+  .trend-chart {
+    grid-template-columns: 1fr;
+  }
+
+  .incident-table-title,
+  .admin-analytics-header,
+  .zone-utilisation-copy {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .analytics-trend-panel,
+  .zone-utilisation-panel,
+  .peak-hour-panel {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .trend-bar-column {
+    grid-template-columns: 58px minmax(0, 1fr) 44px;
+    grid-template-rows: auto;
+    align-items: center;
+    justify-items: stretch;
+  }
+
+  .trend-bar {
+    width: 100%;
+    height: 16px !important;
+    border-radius: 999px;
   }
 
   .admin-confirmation {

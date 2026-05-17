@@ -463,7 +463,6 @@ test("Phase 03 does not expose Phase 4 or Phase 5 workflows early", async () => 
       { method: "GET", path: "/api/predictions" },
       { method: "GET", path: "/api/incident-reports" },
       { method: "GET", path: "/api/analytics" },
-      { method: "GET", path: "/api/admin/analytics" },
     ];
 
     for (const route of unavailableRoutes) {

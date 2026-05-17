@@ -4,6 +4,8 @@ import {
   AdminParkingInventoryPage,
   type AdminParkingInventoryView,
 } from "./features/admin/AdminParkingInventoryPage.js";
+import { AdminAnalyticsPage } from "./features/admin/AdminAnalyticsPage.js";
+import { AdminIncidentManagementPage } from "./features/admin/AdminIncidentManagementPage.js";
 import { AdminSensorEventsPage } from "./features/admin/AdminSensorEventsPage.js";
 import { AdminUsersPage } from "./features/admin/AdminUsersPage.js";
 import { LoginPage } from "./features/auth/LoginPage.js";
@@ -11,6 +13,7 @@ import { RegisterPage } from "./features/auth/RegisterPage.js";
 import { useAuthState } from "./features/auth/authState.js";
 import { ParkingDashboardPage } from "./features/parking/ParkingDashboardPage.js";
 import { ParkingMapPage } from "./features/parking/ParkingMapPage.js";
+import { ReportIssuePage } from "./features/parking/ReportIssuePage.js";
 import type { UserRole } from "./features/auth/authTypes.js";
 
 const driverSidebarItems = [
@@ -151,6 +154,8 @@ export function App() {
           <ParkingDashboardPage />
         ) : effectiveSection === "Parking Map" ? (
           <ParkingMapPage />
+        ) : effectiveSection === "Report Issue" ? (
+          <ReportIssuePage />
         ) : effectiveSection === "Users" ? (
           <AdminUsersPage />
         ) : isAdminParkingInventorySection(effectiveSection) ? (
@@ -160,6 +165,10 @@ export function App() {
           />
         ) : effectiveSection === "Sensors" ? (
           <AdminSensorEventsPage />
+        ) : effectiveSection === "Incidents" ? (
+          <AdminIncidentManagementPage />
+        ) : effectiveSection === "Analytics" ? (
+          <AdminAnalyticsPage />
         ) : effectiveSection === "Settings" ? (
           <DeferredState title="Settings" />
         ) : user.role === "admin" ? (
@@ -222,8 +231,11 @@ function shouldShowDefaultIntro(section: AppSection): boolean {
   return (
     section !== "Dashboard" &&
     section !== "Parking Map" &&
+    section !== "Report Issue" &&
     section !== "Users" &&
     section !== "Sensors" &&
+    section !== "Incidents" &&
+    section !== "Analytics" &&
     !isAdminParkingInventorySection(section)
   );
 }
