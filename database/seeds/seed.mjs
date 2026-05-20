@@ -13,6 +13,7 @@ const pad = (value) => String(value).padStart(3, "0");
 const zones = [
   {
     id: "zone-north-lot",
+    zoneCode: "N",
     name: "North Lot",
     description: "Primary student parking near the north campus entrance.",
     capacity: 20,
@@ -21,6 +22,7 @@ const zones = [
   },
   {
     id: "zone-engineering-building",
+    zoneCode: "B",
     name: "Engineering Building",
     description: "Parking zone closest to engineering labs and lecture rooms.",
     capacity: 20,
@@ -29,6 +31,7 @@ const zones = [
   },
   {
     id: "zone-library-deck",
+    zoneCode: "L",
     name: "Library Deck",
     description: "Central parking zone near the library and student services.",
     capacity: 20,
@@ -37,6 +40,7 @@ const zones = [
   },
   {
     id: "zone-south-campus",
+    zoneCode: "S",
     name: "South Campus",
     description: "Mixed student and staff parking near the south buildings.",
     capacity: 20,
@@ -45,6 +49,7 @@ const zones = [
   },
   {
     id: "zone-sports-centre",
+    zoneCode: "SC",
     name: "Sports Centre",
     description: "Parking zone near the sports centre and recreation fields.",
     capacity: 20,
@@ -109,7 +114,7 @@ const parkingSpots = zones.flatMap((zone, zoneIndex) =>
     return {
       id: `spot-${pad(globalIndex)}`,
       zoneId: zone.id,
-      spotCode: `${String.fromCharCode(65 + zoneIndex)}-${pad(spotIndex + 1)}`,
+      spotCode: `${zone.zoneCode}-${pad(spotIndex + 1)}`,
       status: ["available", "occupied", "reserved", "maintenanceRequired"][globalIndex % 4],
       level: zoneIndex < 2 ? "Ground" : "Level 1",
       rowLabel: String.fromCharCode(65 + zoneIndex),

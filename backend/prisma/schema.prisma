@@ -125,6 +125,7 @@ model Subscription {
 
 model ParkingZone {
   id                      String   @id @default(cuid())
+  zoneCode                String   @unique @map("zone_code")
   name                    String   @unique
   description             String?
   capacity                Int

@@ -21,6 +21,7 @@ async function cleanup() {
 async function createSpot({ zoneName = "Detection Service Zone A", status = "available" } = {}) {
   const zone = await prisma.parkingZone.create({
     data: {
+      zoneCode: zoneName.endsWith("B") ? "DSB" : "DSA",
       name: zoneName,
       capacity: 4,
     },

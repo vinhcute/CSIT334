@@ -14,6 +14,8 @@ export function createParkingSpotsRouter(
 
   router.get("/api/parking-spots", authMiddleware, controller.index);
   router.get("/api/parking-zones/:zoneId/parking-spots", authMiddleware, controller.indexForZone);
+  router.get("/api/admin/parking-zones/:zoneId/next-spot-code", adminOnly, controller.nextSpotCode);
+  router.patch("/api/admin/parking-spots/bulk-level", adminOnly, controller.bulkLevelUpdate);
   router.post("/api/admin/parking-spots", adminOnly, controller.create);
   router.patch("/api/admin/parking-spots/:id", adminOnly, controller.update);
   router.delete("/api/admin/parking-spots/:id", adminOnly, controller.delete);

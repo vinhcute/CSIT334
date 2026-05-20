@@ -8,7 +8,7 @@ const spotStatusSchema = z.enum(["available", "occupied", "reserved", "maintenan
 
 const parkingSpotSchema = z.object({
   zoneId: z.string().trim().min(1, "Parking zone ID is required."),
-  spotCode: z.string().trim().min(1, "Parking spot code is required."),
+  spotCode: z.string().trim().min(1, "Parking spot code is required.").optional(),
   status: spotStatusSchema.default("available"),
   level: z.string().trim().optional(),
   rowLabel: z.string().trim().optional(),
@@ -26,6 +26,15 @@ export type UpdateParkingSpotInput = z.input<typeof updateParkingSpotSchema>;
 export interface ListParkingSpotInput {
   zoneId?: unknown;
   status?: unknown;
+  page?: unknown;
+  pageSize?: unknown;
+}
+
+export interface BulkUpdateParkingSpotLevelInput {
+  zoneId?: unknown;
+  level?: unknown;
+  spotIds?: unknown;
+  range?: unknown;
 }
 
 export class ParkingSpotValidationError extends Error {
@@ -63,6 +72,13 @@ export class ParkingSpotCapacityConflictError extends Error {
   }
 }
 
+export class ParkingSpotRangeConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ParkingSpotRangeConflictError";
+  }
+}
+
 export class ParkingSpotService {
   constructor(
     private readonly parkingSpotRepository = new ParkingSpotRepository(),
@@ -74,6 +90,17 @@ export class ParkingSpotService {
       .object({
         zoneId: z.string().trim().min(1, "Parking zone ID is required.").optional(),
         status: spotStatusSchema.optional(),
+        page: z.coerce
+          .number()
+          .int("Page must be a whole number.")
+          .min(1, "Page must be at least 1.")
+          .optional(),
+        pageSize: z.coerce
+          .number()
+          .int("Page size must be a whole number.")
+          .min(1, "Page size must be at least 1.")
+          .max(100, "Page size cannot exceed 100.")
+          .optional(),
       })
       .safeParse(input);
 
@@ -86,6 +113,36 @@ export class ParkingSpotService {
     }
 
     return this.parkingSpotRepository.list(parsed.data);
+  }
+
+  async listSpotsPaginated(input: ListParkingSpotInput = {}) {
+    const parsed = z
+      .object({
+        zoneId: z.string().trim().min(1, "Parking zone ID is required.").optional(),
+        status: spotStatusSchema.optional(),
+        page: z.coerce
+          .number()
+          .int("Page must be a whole number.")
+          .min(1, "Page must be at least 1.")
+          .default(1),
+        pageSize: z.coerce
+          .number()
+          .int("Page size must be a whole number.")
+          .min(1, "Page size must be at least 1.")
+          .max(100, "Page size cannot exceed 100.")
+          .default(20),
+      })
+      .safeParse(input);
+
+    if (!parsed.success) {
+      throw new ParkingSpotValidationError(parsed.error.issues.map((issue) => issue.message));
+    }
+
+    if (parsed.data.zoneId) {
+      await this.assertZoneExists(parsed.data.zoneId);
+    }
+
+    return this.parkingSpotRepository.listPaginated(parsed.data);
   }
 
   async findSpotById(id: string) {
@@ -105,10 +162,15 @@ export class ParkingSpotService {
       throw new ParkingSpotValidationError(parsed.error.issues.map((issue) => issue.message));
     }
 
-    await this.assertZoneHasSpace(parsed.data.zoneId);
-    await this.assertSpotCodeAvailable(parsed.data.zoneId, parsed.data.spotCode);
+    const spotCode = parsed.data.spotCode ?? (await this.getNextSpotCodeForZone(parsed.data.zoneId));
 
-    return this.parkingSpotRepository.create(parsed.data);
+    await this.assertZoneHasSpace(parsed.data.zoneId);
+    await this.assertSpotCodeAvailable(parsed.data.zoneId, spotCode);
+
+    return this.parkingSpotRepository.create({
+      ...parsed.data,
+      spotCode,
+    });
   }
 
   async updateSpot(id: string, input: UpdateParkingSpotInput) {
@@ -138,6 +200,29 @@ export class ParkingSpotService {
     return this.parkingSpotRepository.update(id, parsed.data);
   }
 
+  async getNextSpotCodeForZone(zoneId: string) {
+    const zone = await this.parkingZoneRepository.findById(zoneId);
+
+    if (!zone) {
+      throw new ParkingSpotZoneNotFoundError();
+    }
+
+    const spotCodes = await this.parkingSpotRepository.listSpotCodesByZoneId(zoneId);
+    const prefix = `${zone.zoneCode}-`;
+    const pattern = new RegExp(`^${escapeRegExp(prefix)}(\\d+)$`);
+    const highestSequence = spotCodes.reduce((highest, spot) => {
+      const match = pattern.exec(spot.spotCode);
+
+      if (!match) {
+        return highest;
+      }
+
+      return Math.max(highest, Number(match[1]));
+    }, 0);
+
+    return `${prefix}${String(highestSequence + 1).padStart(3, "0")}`;
+  }
+
   async deleteSpot(id: string) {
     const existing = await this.parkingSpotRepository.findById(id);
 
@@ -146,6 +231,141 @@ export class ParkingSpotService {
     }
 
     return this.parkingSpotRepository.delete(id);
+  }
+
+  async bulkUpdateSpotLevel(input: BulkUpdateParkingSpotLevelInput) {
+    const parsed = z
+      .object({
+        zoneId: z.string().trim().min(1, "Parking zone ID is required."),
+        level: z
+          .string()
+          .trim()
+          .min(1, "Level is required.")
+          .max(50, "Level cannot exceed 50 characters."),
+        spotIds: z
+          .array(z.string().trim().min(1, "Parking spot ID is required."))
+          .min(1, "Choose at least one parking spot.")
+          .optional(),
+        range: z
+          .object({
+            from: z.coerce
+              .number()
+              .int("Range start must be a whole number.")
+              .min(1, "Range start must be at least 1."),
+            to: z.coerce
+              .number()
+              .int("Range end must be a whole number.")
+              .min(1, "Range end must be at least 1."),
+          })
+          .optional(),
+      })
+      .safeParse(input);
+
+    if (!parsed.success) {
+      throw new ParkingSpotValidationError(parsed.error.issues.map((issue) => issue.message));
+    }
+
+    if (parsed.data.range && parsed.data.spotIds) {
+      throw new ParkingSpotValidationError([
+        "Choose only one targeting mode: all spots, spot IDs, or range.",
+      ]);
+    }
+
+    if (parsed.data.range) {
+      const rangeSize = parsed.data.range.to - parsed.data.range.from + 1;
+
+      if (parsed.data.range.from > parsed.data.range.to) {
+        throw new ParkingSpotValidationError([
+          "Range start must be less than or equal to range end.",
+        ]);
+      }
+
+      if (rangeSize > 500) {
+        throw new ParkingSpotValidationError([
+          "Range cannot exceed 500 spots.",
+        ]);
+      }
+    }
+
+    await this.assertZoneExists(parsed.data.zoneId);
+
+    if (parsed.data.range) {
+      const zone = await this.parkingZoneRepository.findById(parsed.data.zoneId);
+
+      if (!zone) {
+        throw new ParkingSpotZoneNotFoundError();
+      }
+
+      const expectedSpotCodes = generateSpotCodesForRange(
+        zone.zoneCode,
+        parsed.data.range.from,
+        parsed.data.range.to,
+      );
+      const existingSpots = await this.parkingSpotRepository.listByZoneIdAndSpotCodes(
+        parsed.data.zoneId,
+        expectedSpotCodes,
+      );
+      const existingSpotCodeSet = new Set(existingSpots.map((spot) => spot.spotCode));
+      const missingSpotCodes = expectedSpotCodes.filter((spotCode) => !existingSpotCodeSet.has(spotCode));
+
+      if (missingSpotCodes.length > 0) {
+        throw new ParkingSpotRangeConflictError(
+          `Requested range includes missing spot codes: ${missingSpotCodes.join(", ")}.`,
+        );
+      }
+
+      const updatedCount = await this.parkingSpotRepository.updateLevelByZoneIdAndSpotCodes(
+        parsed.data.zoneId,
+        expectedSpotCodes,
+        parsed.data.level,
+      );
+
+      return {
+        zoneId: parsed.data.zoneId,
+        level: parsed.data.level,
+        updatedCount,
+        mode: "range" as const,
+        range: parsed.data.range,
+      };
+    }
+
+    if (parsed.data.spotIds) {
+      const matchingCount = await this.parkingSpotRepository.countByZoneIdAndSpotIds(
+        parsed.data.zoneId,
+        parsed.data.spotIds,
+      );
+
+      if (matchingCount !== parsed.data.spotIds.length) {
+        throw new ParkingSpotValidationError([
+          "All selected spots must belong to the selected zone.",
+        ]);
+      }
+
+      const updatedCount = await this.parkingSpotRepository.updateLevelByZoneIdAndSpotIds(
+        parsed.data.zoneId,
+        parsed.data.spotIds,
+        parsed.data.level,
+      );
+
+      return {
+        zoneId: parsed.data.zoneId,
+        level: parsed.data.level,
+        updatedCount,
+        mode: "spotIds" as const,
+      };
+    }
+
+    const updatedCount = await this.parkingSpotRepository.updateLevelByZoneId(
+      parsed.data.zoneId,
+      parsed.data.level,
+    );
+
+    return {
+      zoneId: parsed.data.zoneId,
+      level: parsed.data.level,
+      updatedCount,
+      mode: "all" as const,
+    };
   }
 
   private async assertZoneExists(zoneId: string): Promise<void> {
@@ -180,4 +400,16 @@ export class ParkingSpotService {
       throw new DuplicateParkingSpotCodeError();
     }
   }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function generateSpotCodesForRange(zoneCode: string, from: number, to: number): string[] {
+  return Array.from({ length: to - from + 1 }, (_, index) => {
+    const spotNumber = from + index;
+
+    return `${zoneCode}-${String(spotNumber).padStart(3, "0")}`;
+  });
 }

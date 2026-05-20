@@ -7,6 +7,7 @@ import {
   canViewAdminSensorEvents,
   createEmptySensorEventFormValues,
   getDetectionEventResultStatus,
+  getDetectionEventSpotDisplay,
   getDetectionEventTypeText,
   getParkingSpotStatusText,
   getSensorEventErrorMessage,
@@ -17,6 +18,7 @@ import {
 } from "../src/features/admin/AdminSensorEventsPage.js";
 import type { SafeUser } from "../src/features/auth/authTypes.js";
 import type { ParkingSpot } from "../src/services/parkingSpotsApi.js";
+import type { DetectionEvent } from "../src/services/detectionEventsApi.js";
 
 const adminUser: SafeUser = {
   id: "admin-1",
@@ -70,6 +72,27 @@ describe("admin simulated sensor events UI rules", () => {
     expect(getParkingSpotStatusText(getDetectionEventResultStatus("vehicleEntry"))).toBe(
       "Occupied",
     );
+  });
+
+  it("prefers backend-provided spotCode for event rows", () => {
+    const eventWithSpot = {
+      id: "event-1",
+      spotId: "spot-100",
+      spot: { id: "spot-1", zoneId: "zone-1", spotCode: "ZT-001" },
+      type: "vehicleEntry",
+      occurredAt: "2026-05-15T00:00:00.000Z",
+      rawPayload: null,
+      createdAt: "2026-05-15T00:00:00.000Z",
+    } satisfies DetectionEvent;
+    const eventWithoutSpot = {
+      ...eventWithSpot,
+      id: "event-2",
+      spot: null,
+    } satisfies DetectionEvent;
+
+    expect(getDetectionEventSpotDisplay(eventWithSpot)).toBe("ZT-001");
+    expect(getDetectionEventSpotDisplay(eventWithoutSpot)).toBe("Unknown spot");
+    expect(getDetectionEventSpotDisplay(eventWithSpot)).not.toBe("spot-100");
   });
 
   it("validates spot selection and event type before submit", () => {

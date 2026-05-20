@@ -111,10 +111,27 @@ async function seedUsers() {
 async function createZone(name, capacity = 10) {
   return prisma.parkingZone.create({
     data: {
+      zoneCode: zoneCodeForName(name),
       name,
       capacity,
     },
   });
+}
+
+function zoneCodeForName(name) {
+  if (name.endsWith("Zone B")) {
+    return "RSB";
+  }
+
+  if (name.includes("Delete")) {
+    return "RSD";
+  }
+
+  if (name.includes("Duplicate")) {
+    return "RSP";
+  }
+
+  return "RSA";
 }
 
 async function login(app, email, password) {
@@ -300,6 +317,8 @@ test("Authenticated driver can list parking spots and filter by status", async (
     });
 
     assert.equal(allSpots.statusCode, 200);
+    assert.equal(allSpots.body.pagination.page, 1);
+    assert.equal(allSpots.body.pagination.pageSize, 20);
     assert.equal(
       allSpots.body.parkingSpots.some((spot) => spot.spotCode === "A-001"),
       true,
@@ -310,6 +329,45 @@ test("Authenticated driver can list parking spots and filter by status", async (
         .filter((spot) => spot.zoneId === zone.id)
         .map((spot) => spot.status),
       ["available"],
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Parking spot list supports pagination metadata and filters", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const zone = await createZone("Spot Routes Zone A", 30);
+    await prisma.parkingSpot.createMany({
+      data: Array.from({ length: 25 }, (_, index) => ({
+        zoneId: zone.id,
+        spotCode: `RSA-${String(index + 1).padStart(3, "0")}`,
+        status: index % 2 === 0 ? "available" : "occupied",
+      })),
+    });
+    const token = await driverToken(app);
+    const result = await request(
+      app,
+      `/api/parking-spots?zoneId=${zone.id}&status=available&page=2&pageSize=5`,
+      {
+        headers: authHeaders(token),
+      },
+    );
+
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(result.body.pagination, {
+      page: 2,
+      pageSize: 5,
+      total: 13,
+      totalPages: 3,
+    });
+    assert.equal(result.body.parkingSpots.length, 5);
+    assert.equal(
+      result.body.parkingSpots.every((spot) => spot.zoneId === zone.id && spot.status === "available"),
+      true,
     );
   } finally {
     await cleanup();
@@ -398,6 +456,44 @@ test("Parking spot routes return controlled validation, duplicate, and not-found
   }
 });
 
+test("Admin can preview and create the next generated spot code", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const zone = await createZone("Spot Routes Zone A");
+    await prisma.parkingSpot.createMany({
+      data: [
+        { zoneId: zone.id, spotCode: "RSA-001", status: "available" },
+        { zoneId: zone.id, spotCode: "RSA-003", status: "available" },
+      ],
+    });
+    const token = await adminToken(app);
+    const preview = await request(
+      app,
+      `/api/admin/parking-zones/${zone.id}/next-spot-code`,
+      {
+        headers: authHeaders(token),
+      },
+    );
+    const created = await request(app, "/api/admin/parking-spots", {
+      method: "POST",
+      headers: authHeaders(token),
+      body: {
+        zoneId: zone.id,
+        status: "available",
+      },
+    });
+
+    assert.equal(preview.statusCode, 200);
+    assert.deepEqual(preview.body, { spotCode: "RSA-004" });
+    assert.equal(created.statusCode, 201);
+    assert.equal(created.body.parkingSpot.spotCode, "RSA-004");
+  } finally {
+    await cleanup();
+  }
+});
+
 test("Parking spot list rejects invalid status filters", async () => {
   const app = await createApp();
   await seedUsers();
@@ -411,6 +507,165 @@ test("Parking spot list rejects invalid status filters", async () => {
     assert.equal(result.statusCode, 400);
     assert.equal(result.body.error, "Parking spot input is invalid.");
     assert.equal(result.body.issues.includes("Parking spot status is invalid."), true);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Admin can bulk update spot levels for a zone", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const zone = await createZone("Spot Routes Zone A");
+    await prisma.parkingSpot.createMany({
+      data: [
+        { zoneId: zone.id, spotCode: "A-001", status: "available" },
+        { zoneId: zone.id, spotCode: "A-002", status: "reserved" },
+      ],
+    });
+    const token = await adminToken(app);
+    const result = await request(app, "/api/admin/parking-spots/bulk-level", {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: {
+        zoneId: zone.id,
+        level: "Level 2",
+      },
+    });
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.zoneId, zone.id);
+    assert.equal(result.body.level, "Level 2");
+    assert.equal(result.body.updatedCount, 2);
+
+    const updatedSpots = await prisma.parkingSpot.findMany({ where: { zoneId: zone.id } });
+    assert.equal(updatedSpots.every((spot) => spot.level === "Level 2"), true);
+    assert.equal(updatedSpots.some((spot) => spot.status === "reserved"), true);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Admin can bulk update spot levels using a spot number range", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const zone = await createZone("Spot Routes Zone A");
+    await prisma.parkingSpot.createMany({
+      data: [
+        { zoneId: zone.id, spotCode: "RSA-001", status: "available", level: null },
+        { zoneId: zone.id, spotCode: "RSA-002", status: "reserved", level: "Ground" },
+        { zoneId: zone.id, spotCode: "RSA-003", status: "occupied", level: "Ground" },
+        { zoneId: zone.id, spotCode: "CUSTOM-900", status: "available", level: "Outdoor" },
+      ],
+    });
+    const token = await adminToken(app);
+    const result = await request(app, "/api/admin/parking-spots/bulk-level", {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: {
+        zoneId: zone.id,
+        level: "Level 2",
+        range: { from: 1, to: 3 },
+      },
+    });
+
+    assert.equal(result.statusCode, 200);
+    assert.equal(result.body.zoneId, zone.id);
+    assert.equal(result.body.level, "Level 2");
+    assert.equal(result.body.mode, "range");
+    assert.equal(result.body.updatedCount, 3);
+
+    const updatedSpots = await prisma.parkingSpot.findMany({ where: { zoneId: zone.id } });
+    const rangeSpots = updatedSpots.filter((spot) => ["RSA-001", "RSA-002", "RSA-003"].includes(spot.spotCode));
+    assert.equal(rangeSpots.every((spot) => spot.level === "Level 2"), true);
+    assert.equal(rangeSpots.some((spot) => spot.status === "reserved"), true);
+    assert.equal(rangeSpots.some((spot) => spot.status === "occupied"), true);
+    const untouchedSpot = updatedSpots.find((spot) => spot.spotCode === "CUSTOM-900");
+    assert.equal(untouchedSpot.level, "Outdoor");
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Bulk spot level route enforces validation and auth", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const zone = await createZone("Spot Routes Zone A");
+    const admin = await adminToken(app);
+    const driver = await driverToken(app);
+
+    const invalid = await request(app, "/api/admin/parking-spots/bulk-level", {
+      method: "PATCH",
+      headers: authHeaders(admin),
+      body: {
+        zoneId: zone.id,
+        level: "   ",
+      },
+    });
+    const forbidden = await request(app, "/api/admin/parking-spots/bulk-level", {
+      method: "PATCH",
+      headers: authHeaders(driver),
+      body: {
+        zoneId: zone.id,
+        level: "Ground",
+      },
+    });
+    const unauthenticated = await request(app, "/api/admin/parking-spots/bulk-level", {
+      method: "PATCH",
+      body: {
+        zoneId: zone.id,
+        level: "Ground",
+      },
+    });
+
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(invalid.body.error, "Parking spot input is invalid.");
+    assert.equal(invalid.body.issues.includes("Level is required."), true);
+    assert.equal(forbidden.statusCode, 403);
+    assert.deepEqual(forbidden.body, { error: "Forbidden." });
+    assert.equal(unauthenticated.statusCode, 401);
+    assert.deepEqual(unauthenticated.body, { error: "Authentication required." });
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Bulk spot level range returns conflict when expected spot codes are missing", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const zone = await createZone("Spot Routes Zone A");
+    await prisma.parkingSpot.createMany({
+      data: [
+        { zoneId: zone.id, spotCode: "RSA-001", status: "available", level: "Ground" },
+        { zoneId: zone.id, spotCode: "RSA-003", status: "available", level: "Ground" },
+      ],
+    });
+    const token = await adminToken(app);
+    const result = await request(app, "/api/admin/parking-spots/bulk-level", {
+      method: "PATCH",
+      headers: authHeaders(token),
+      body: {
+        zoneId: zone.id,
+        level: "Level 2",
+        range: { from: 1, to: 3 },
+      },
+    });
+
+    assert.equal(result.statusCode, 409);
+    assert.equal(
+      result.body.error,
+      "Requested range includes missing spot codes: RSA-002.",
+    );
+
+    const unchangedSpots = await prisma.parkingSpot.findMany({ where: { zoneId: zone.id } });
+    assert.equal(unchangedSpots.every((spot) => spot.level === "Ground"), true);
   } finally {
     await cleanup();
   }

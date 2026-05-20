@@ -270,7 +270,10 @@ test("Phase 02 end-to-end identity and account-management path works", async () 
   }
 });
 
-test("Phase 02 does not expose Phase 3 or later feature routes early", async () => {
+test.skip("Phase 02 does not expose Phase 3 or later feature routes early", async () => {
+  // Historical phase-boundary check retained for the Phase 02-only branch.
+  // This repository is now Phase 04-complete, so later feature routes may exist
+  // and should be verified by their own phase tests instead of blocked here.
   const app = await createApp();
   const unavailableRoutes = [
     "/api/detection-events",

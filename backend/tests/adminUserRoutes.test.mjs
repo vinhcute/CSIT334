@@ -102,6 +102,15 @@ async function seedUsers() {
       },
     },
   });
+  await prisma.subscription.create({
+    data: {
+      userId: driver.id,
+      type: "monthly",
+      status: "active",
+      startTime: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    },
+  });
 
   return { admin, driver };
 }
@@ -145,6 +154,58 @@ test("Admin can list user account summaries without passwordHash", async () => {
       result.body.users.some((user) => Object.hasOwn(user, "passwordHash")),
       false,
     );
+    assert.equal(
+      result.body.users.some((user) => Object.hasOwn(user, "vehicleProfiles")),
+      false,
+    );
+    assert.equal(
+      result.body.users.some((user) => Object.hasOwn(user, "licensePlate")),
+      false,
+    );
+    assert.equal(
+      result.body.users.some((user) => Object.hasOwn(user, "token")),
+      false,
+    );
+    assert.equal(result.body.pagination.page, 1);
+    assert.equal(result.body.pagination.pageSize, 20);
+    assert.equal(typeof result.body.pagination.total, "number");
+    assert.equal(typeof result.body.pagination.totalPages, "number");
+    const driverSummary = result.body.users.find((user) => user.email === driverUser.email);
+    assert.deepEqual(Object.keys(driverSummary.subscription).sort(), ["endTime", "status"]);
+    assert.equal(driverSummary.subscription.status, "subscribed");
+    assert.equal(typeof driverSummary.subscription.endTime, "string");
+    assert.equal(typeof driverSummary.universityId, "string");
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Admin user summaries treat expired subscriptions as not subscribed", async () => {
+  const app = await createApp();
+  const { driver } = await seedUsers();
+
+  try {
+    await prisma.subscription.deleteMany({ where: { userId: driver.id } });
+    await prisma.subscription.create({
+      data: {
+        userId: driver.id,
+        type: "weekly",
+        status: "active",
+        startTime: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      },
+    });
+    const token = await adminToken(app);
+    const result = await request(app, "/api/admin/users", {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const driverSummary = result.body.users.find((user) => user.email === driverUser.email);
+
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(driverSummary.subscription, {
+      status: "notSubscribed",
+      endTime: null,
+    });
   } finally {
     await cleanup();
   }
@@ -163,6 +224,50 @@ test("Driver cannot list admin user summaries", async () => {
     assert.equal(result.statusCode, 403);
     assert.deepEqual(result.body, { error: "Forbidden." });
   } finally {
+    await cleanup();
+  }
+});
+
+test("Admin user list supports pagination query and page 2 data", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const timestamp = Date.now();
+    const extraUsers = Array.from({ length: 24 }, (_, index) => ({
+      name: `Paged Driver ${index}`,
+      email: `admin-paged-driver-${timestamp}-${index}@example.test`,
+      universityId: `PAGED${timestamp}${index}`,
+      passwordHash: "$2b$12$QxQhNhjGjjWDVY4UflK22OoIxM2w6W4MFl8krTVVS0T1A6O6V0S8e",
+      role: "driver",
+      accountStatus: "active",
+    }));
+    await prisma.user.createMany({ data: extraUsers });
+    const token = await adminToken(app);
+    const pageOne = await request(app, "/api/admin/users?page=1&pageSize=20", {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const pageTwo = await request(app, "/api/admin/users?page=2&pageSize=20", {
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    assert.equal(pageOne.statusCode, 200);
+    assert.equal(pageTwo.statusCode, 200);
+    assert.equal(pageOne.body.pagination.page, 1);
+    assert.equal(pageTwo.body.pagination.page, 2);
+    assert.equal(pageOne.body.pagination.pageSize, 20);
+    assert.equal(pageTwo.body.pagination.pageSize, 20);
+    assert.equal(pageOne.body.users.length, 20);
+    assert.equal(pageTwo.body.users.length > 0, true);
+    assert.notEqual(pageOne.body.users[0]?.id, pageTwo.body.users[0]?.id);
+  } finally {
+    await prisma.user.deleteMany({
+      where: {
+        email: {
+          contains: "admin-paged-driver-",
+        },
+      },
+    });
     await cleanup();
   }
 });

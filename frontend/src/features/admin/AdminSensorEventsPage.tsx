@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ApiError, ApiResponseFormatError, createApiClient } from "../../services/apiClient.js";
+import { PaginationControls } from "../../components/PaginationControls.js";
 import {
   createDetectionEventsApi,
   type DetectionEvent,
@@ -15,6 +16,7 @@ import { useAuthState } from "../auth/authState.js";
 import type { SafeUser } from "../auth/authTypes.js";
 
 const sharedApiClient = createApiClient();
+const DETECTION_EVENTS_PAGE_SIZE = 20;
 
 type SensorPageStatus = "loading" | "ready" | "empty" | "error";
 
@@ -136,6 +138,10 @@ export function formatSensorEventTime(occurredAt: string): string {
   }).format(new Date(occurredAt));
 }
 
+export function getDetectionEventSpotDisplay(event: DetectionEvent): string {
+  return event.spot?.spotCode ?? "Unknown spot";
+}
+
 export function AdminSensorEventsPage() {
   const { user } = useAuthState();
   const detectionEventsApi = useMemo(
@@ -146,6 +152,8 @@ export function AdminSensorEventsPage() {
   const [status, setStatus] = useState<SensorPageStatus>("loading");
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [events, setEvents] = useState<DetectionEvent[]>([]);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsTotalPages, setEventsTotalPages] = useState(1);
   const [formValues, setFormValues] = useState<SensorEventFormValues>(
     createEmptySensorEventFormValues(),
   );
@@ -154,7 +162,7 @@ export function AdminSensorEventsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadSensorData = useCallback(async () => {
+  const loadSensorData = useCallback(async (targetPage = eventsPage) => {
     if (!canViewAdminSensorEvents(user)) {
       return;
     }
@@ -165,11 +173,15 @@ export function AdminSensorEventsPage() {
     try {
       const [spotsResponse, eventsResponse] = await Promise.all([
         parkingSpotsApi.listSpots(),
-        detectionEventsApi.listRecentDetectionEvents(),
+        detectionEventsApi.listRecentDetectionEvents({
+          page: targetPage,
+          pageSize: DETECTION_EVENTS_PAGE_SIZE,
+        }),
       ]);
 
       setSpots(spotsResponse.parkingSpots);
       setEvents(eventsResponse.detectionEvents);
+      setEventsTotalPages(eventsResponse.pagination.totalPages);
       setFormValues((currentValues) => ({
         ...currentValues,
         spotId: currentValues.spotId || spotsResponse.parkingSpots[0]?.id || "",
@@ -179,7 +191,7 @@ export function AdminSensorEventsPage() {
       setStatus("error");
       setError(getSensorEventErrorMessage(loadError));
     }
-  }, [detectionEventsApi, parkingSpotsApi, user]);
+  }, [detectionEventsApi, eventsPage, parkingSpotsApi, user]);
 
   useEffect(() => {
     void loadSensorData();
@@ -202,12 +214,13 @@ export function AdminSensorEventsPage() {
       );
 
       setUpdatedSpot(result.parkingSpot);
-      setEvents((currentEvents) => [result.detectionEvent, ...currentEvents].slice(0, 10));
       setSpots((currentSpots) =>
         currentSpots.map((spot) =>
           spot.id === result.parkingSpot.id ? result.parkingSpot : spot,
         ),
       );
+      setEventsPage(1);
+      await loadSensorData(1);
       setMessage(
         `${result.parkingSpot.spotCode} updated to ${getParkingSpotStatusText(result.parkingSpot.status)}.`,
       );
@@ -254,9 +267,6 @@ export function AdminSensorEventsPage() {
       </section>
     );
   }
-
-  const spotNameById = new Map(spots.map((spot) => [spot.id, spot.spotCode]));
-
   return (
     <section className="sensor-events-page" aria-labelledby="sensor-events-title">
       <div className="sensor-events-header">
@@ -360,7 +370,7 @@ export function AdminSensorEventsPage() {
             {events.map((event) => (
               <article className="sensor-feed-row" key={event.id}>
                 <span>{formatSensorEventTime(event.occurredAt)}</span>
-                <strong>{spotNameById.get(event.spotId) ?? event.spotId}</strong>
+                <strong>{getDetectionEventSpotDisplay(event)}</strong>
                 <span>{getDetectionEventTypeText(event.type)}</span>
                 <span className={getParkingSpotStatusClass(getDetectionEventResultStatus(event.type))}>
                   {getParkingSpotStatusText(getDetectionEventResultStatus(event.type))}
@@ -369,6 +379,18 @@ export function AdminSensorEventsPage() {
             ))}
           </div>
         )}
+        <PaginationControls
+          currentPage={eventsPage}
+          label="Detection events pagination"
+          loading={false}
+          onNext={() =>
+            setEventsPage((currentPage) => Math.min(currentPage + 1, eventsTotalPages))
+          }
+          onPrevious={() =>
+            setEventsPage((currentPage) => Math.max(currentPage - 1, 1))
+          }
+          totalPages={eventsTotalPages}
+        />
       </section>
     </section>
   );

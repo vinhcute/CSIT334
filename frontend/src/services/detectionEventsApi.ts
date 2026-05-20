@@ -6,6 +6,11 @@ export type DetectionEventType = "vehicleEntry" | "vehicleExit";
 export interface DetectionEvent {
   id: string;
   spotId: string;
+  spot: {
+    id: string;
+    zoneId: string;
+    spotCode: string;
+  } | null;
   type: DetectionEventType;
   occurredAt: string;
   rawPayload: unknown;
@@ -14,6 +19,19 @@ export interface DetectionEvent {
 
 export interface DetectionEventsResponse {
   detectionEvents: DetectionEvent[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface DetectionEventsFilters {
+  page?: number;
+  pageSize?: number;
+  spotId?: string;
+  type?: DetectionEventType;
 }
 
 export interface IngestDetectionEventRequest {
@@ -34,10 +52,15 @@ export function createDetectionEventsApi(
   apiClient: DetectionEventsApiClient = createApiClient(),
 ) {
   return {
-    listRecentDetectionEvents(): Promise<DetectionEventsResponse> {
-      return apiClient.request<DetectionEventsResponse>("/api/admin/detection-events", {
-        authenticated: true,
-      });
+    listRecentDetectionEvents(
+      filters: DetectionEventsFilters = {},
+    ): Promise<DetectionEventsResponse> {
+      return apiClient.request<DetectionEventsResponse>(
+        buildDetectionEventsPath(filters),
+        {
+          authenticated: true,
+        },
+      );
     },
 
     ingestDetectionEvent(
@@ -53,4 +76,28 @@ export function createDetectionEventsApi(
       );
     },
   };
+}
+
+function buildDetectionEventsPath(filters: DetectionEventsFilters): string {
+  const searchParams = new URLSearchParams();
+
+  if (filters.page) {
+    searchParams.set("page", String(filters.page));
+  }
+
+  if (filters.pageSize) {
+    searchParams.set("pageSize", String(filters.pageSize));
+  }
+
+  if (filters.spotId) {
+    searchParams.set("spotId", filters.spotId);
+  }
+
+  if (filters.type) {
+    searchParams.set("type", filters.type);
+  }
+
+  const query = searchParams.toString();
+
+  return `/api/admin/detection-events${query ? `?${query}` : ""}`;
 }

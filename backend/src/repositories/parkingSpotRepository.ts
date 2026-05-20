@@ -31,7 +31,30 @@ export interface UpdateParkingSpotRecordInput {
 export interface ListParkingSpotFilters {
   zoneId?: string;
   status?: SpotStatus;
+  page?: number;
+  pageSize?: number;
 }
+
+export interface PaginatedParkingSpotResult {
+  parkingSpots: ParkingSpotRecord[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+type ParkingSpotRecord = {
+  id: string;
+  zoneId: string;
+  spotCode: string;
+  status: SpotStatus;
+  level: string | null;
+  rowLabel: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 export class ParkingSpotRepository {
   constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
@@ -45,6 +68,35 @@ export class ParkingSpotRepository {
       orderBy: [{ zoneId: "asc" }, { spotCode: "asc" }],
       select: parkingSpotSelect,
     });
+  }
+
+  async listPaginated(filters: ListParkingSpotFilters = {}): Promise<PaginatedParkingSpotResult> {
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 20;
+    const where = {
+      zoneId: filters.zoneId,
+      status: filters.status,
+    };
+    const [parkingSpots, total] = await this.prisma.$transaction([
+      this.prisma.parkingSpot.findMany({
+        where,
+        orderBy: [{ zoneId: "asc" }, { spotCode: "asc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: parkingSpotSelect,
+      }),
+      this.prisma.parkingSpot.count({ where }),
+    ]);
+
+    return {
+      parkingSpots,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
   }
 
   async findById(id: string) {
@@ -72,6 +124,34 @@ export class ParkingSpotRepository {
     });
   }
 
+  async countByZoneIdAndSpotIds(zoneId: string, spotIds: string[]) {
+    return this.prisma.parkingSpot.count({
+      where: {
+        zoneId,
+        id: { in: spotIds },
+      },
+    });
+  }
+
+  async listSpotCodesByZoneId(zoneId: string) {
+    return this.prisma.parkingSpot.findMany({
+      where: { zoneId },
+      select: { spotCode: true },
+      orderBy: { spotCode: "asc" },
+    });
+  }
+
+  async listByZoneIdAndSpotCodes(zoneId: string, spotCodes: string[]) {
+    return this.prisma.parkingSpot.findMany({
+      where: {
+        zoneId,
+        spotCode: { in: spotCodes },
+      },
+      select: parkingSpotSelect,
+      orderBy: { spotCode: "asc" },
+    });
+  }
+
   async create(input: CreateParkingSpotRecordInput) {
     return this.prisma.parkingSpot.create({
       data: input,
@@ -85,6 +165,39 @@ export class ParkingSpotRepository {
       data: input,
       select: parkingSpotSelect,
     });
+  }
+
+  async updateLevelByZoneId(zoneId: string, level: string) {
+    const result = await this.prisma.parkingSpot.updateMany({
+      where: { zoneId },
+      data: { level },
+    });
+
+    return result.count;
+  }
+
+  async updateLevelByZoneIdAndSpotIds(zoneId: string, spotIds: string[], level: string) {
+    const result = await this.prisma.parkingSpot.updateMany({
+      where: {
+        zoneId,
+        id: { in: spotIds },
+      },
+      data: { level },
+    });
+
+    return result.count;
+  }
+
+  async updateLevelByZoneIdAndSpotCodes(zoneId: string, spotCodes: string[], level: string) {
+    const result = await this.prisma.parkingSpot.updateMany({
+      where: {
+        zoneId,
+        spotCode: { in: spotCodes },
+      },
+      data: { level },
+    });
+
+    return result.count;
   }
 
   async delete(id: string) {

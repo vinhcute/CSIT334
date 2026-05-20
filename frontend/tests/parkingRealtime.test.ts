@@ -5,6 +5,7 @@ import {
   parseParkingUpdateMessage,
   type ParkingUpdateEvent,
 } from "../src/services/parkingEventsApi.js";
+import { listAllParkingSpots, type ParkingSpotsResponse } from "../src/services/parkingSpotsApi.js";
 
 const update: ParkingUpdateEvent = {
   spotId: "spot-1",
@@ -86,5 +87,49 @@ describe("parking realtime event stream", () => {
     expect(serializedUpdate).not.toContain("universityId");
     expect(serializedUpdate).not.toContain("licensePlate");
     expect(serializedUpdate).not.toContain("licence");
+  });
+
+  it("can still reload all paginated spots after a realtime-triggered refresh", async () => {
+    const fetchPage = vi
+      .fn<(filters: { page?: number }) => Promise<ParkingSpotsResponse>>()
+      .mockImplementation(async (filters) => {
+        if ((filters.page ?? 1) === 1) {
+          return {
+            parkingSpots: Array.from({ length: 20 }, (_, index) => ({
+              id: `spot-${index + 1}`,
+              zoneId: "zone-1",
+              spotCode: `B-${String(index + 1).padStart(3, "0")}`,
+              status: "available",
+              level: "Ground",
+              rowLabel: "B",
+              createdAt: "2026-05-15T00:00:00.000Z",
+              updatedAt: "2026-05-15T00:00:00.000Z",
+            })),
+            pagination: { page: 1, pageSize: 20, total: 21, totalPages: 2 },
+          };
+        }
+
+        return {
+          parkingSpots: [
+            {
+              id: "spot-21",
+              zoneId: "zone-1",
+              spotCode: "B-021",
+              status: "occupied",
+              level: "Level 2",
+              rowLabel: "B",
+              createdAt: "2026-05-15T00:00:00.000Z",
+              updatedAt: "2026-05-15T00:00:00.000Z",
+            },
+          ],
+          pagination: { page: 2, pageSize: 20, total: 21, totalPages: 2 },
+        };
+      });
+
+    const loadedSpots = await listAllParkingSpots(fetchPage);
+
+    expect(fetchPage).toHaveBeenCalledTimes(2);
+    expect(loadedSpots).toHaveLength(21);
+    expect(loadedSpots.some((spot) => spot.id === "spot-21")).toBe(true);
   });
 });

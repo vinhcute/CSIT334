@@ -110,6 +110,7 @@ async function seedUsers() {
 async function createSpot({ zoneName = "Detection Routes Zone A", status = "available" } = {}) {
   const zone = await prisma.parkingZone.create({
     data: {
+      zoneCode: zoneName.endsWith("B") ? "DRB" : "DRA",
       name: zoneName,
       capacity: 4,
     },
@@ -327,12 +328,54 @@ test("Admin can list recent detection events", async () => {
 
     assert.equal(result.statusCode, 200);
     assert.equal(result.body.detectionEvents.length >= 2, true);
+    assert.equal(result.body.pagination.page, 1);
+    assert.equal(result.body.pagination.pageSize, 20);
+    assert.equal(typeof result.body.pagination.total, "number");
+    assert.equal(typeof result.body.pagination.totalPages, "number");
     assert.deepEqual(
       result.body.detectionEvents
         .filter((event) => event.spotId === spot.id)
         .map((event) => event.type),
       ["vehicleExit", "vehicleEntry"],
     );
+    const latest = result.body.detectionEvents.find((event) => event.spotId === spot.id);
+    assert.equal(latest.spot.spotCode, spot.spotCode);
+    assert.equal(latest.spot.zoneId, spot.zoneId);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Detection event route supports pagination and spot filter", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const spotA = await createSpot({ zoneName: "Detection Routes Zone A" });
+    const spotB = await createSpot({ zoneName: "Detection Routes Zone B" });
+    await prisma.detectionEvent.createMany({
+      data: [
+        { spotId: spotA.id, type: "vehicleEntry", occurredAt: new Date("2026-05-15T03:00:00.000Z") },
+        { spotId: spotA.id, type: "vehicleExit", occurredAt: new Date("2026-05-15T02:00:00.000Z") },
+        { spotId: spotB.id, type: "vehicleEntry", occurredAt: new Date("2026-05-15T01:00:00.000Z") },
+      ],
+    });
+    const token = await adminToken(app);
+    const filtered = await request(
+      app,
+      `/api/admin/detection-events?page=1&pageSize=1&spotId=${spotA.id}`,
+      {
+        headers: authHeaders(token),
+      },
+    );
+
+    assert.equal(filtered.statusCode, 200);
+    assert.equal(filtered.body.detectionEvents.length, 1);
+    assert.equal(filtered.body.detectionEvents[0].spotId, spotA.id);
+    assert.equal(filtered.body.pagination.page, 1);
+    assert.equal(filtered.body.pagination.pageSize, 1);
+    assert.equal(filtered.body.pagination.total >= 2, true);
+    assert.equal(filtered.body.pagination.totalPages >= 2, true);
   } finally {
     await cleanup();
   }

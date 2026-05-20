@@ -109,6 +109,7 @@ async function seedUsers() {
 async function seedZones() {
   const firstZone = await prisma.parkingZone.create({
     data: {
+      zoneCode: "ORA",
       name: "Occupancy Routes Zone A",
       capacity: 4,
       displayOrder: 1,
@@ -129,6 +130,7 @@ async function seedZones() {
   });
   await prisma.parkingZone.create({
     data: {
+      zoneCode: "ORB",
       name: "Occupancy Routes Zone B",
       capacity: 2,
       displayOrder: 2,

@@ -9,9 +9,13 @@ import {
 export class DetectionEventController {
   constructor(private readonly detectionEventService = new DetectionEventService()) {}
 
-  index = async (_request: Request, response: Response): Promise<void> => {
-    const detectionEvents = await this.detectionEventService.listRecentDetectionEvents();
-    response.json({ detectionEvents });
+  index = async (request: Request, response: Response): Promise<void> => {
+    try {
+      const result = await this.detectionEventService.listRecentDetectionEvents(request.query);
+      response.json(result);
+    } catch (error) {
+      this.handleError(error, response);
+    }
   };
 
   create = async (request: Request, response: Response): Promise<void> => {

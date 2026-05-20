@@ -6,6 +6,7 @@ import {
   PARKING_SPOT_STATUS_OPTIONS,
   createEmptySpotFormValues,
   createSpotFormValues,
+  getGeneratedSpotCodePreviewText,
   getParkingInventoryErrorMessage,
   getParkingSpotStatusClass,
   getParkingSpotStatusText,
@@ -20,6 +21,7 @@ import type { ParkingZone } from "../src/services/parkingZonesApi.js";
 
 const zone: ParkingZone = {
   id: "zone-1",
+  zoneCode: "A",
   name: "Zone A",
   description: "North campus parking",
   capacity: 80,
@@ -67,7 +69,7 @@ describe("admin parking spot form UI rules", () => {
     });
   });
 
-  it("validates zone, spot code, and exact schema status values", () => {
+  it("validates zone and exact schema status values while allowing generated spot codes", () => {
     const errors = validateSpotForm(
       {
         zoneId: "missing-zone",
@@ -81,7 +83,7 @@ describe("admin parking spot form UI rules", () => {
 
     expect(spotFormHasErrors(errors)).toBe(true);
     expect(errors.zoneId).toBe("Choose an existing zone");
-    expect(errors.spotCode).toBe("Spot code is required");
+    expect(errors.spotCode).toBeUndefined();
     expect(errors.status).toBe("Choose a valid status");
     expect(PARKING_SPOT_STATUS_OPTIONS).toEqual([
       "available",
@@ -119,6 +121,20 @@ describe("admin parking spot form UI rules", () => {
         rowLabel: "",
       }),
     ).toMatchObject({ level: null, rowLabel: null });
+    expect(
+      toParkingSpotRequest({
+        zoneId: "zone-1",
+        spotCode: "",
+        status: "available",
+        level: "",
+        rowLabel: "",
+      }),
+    ).toMatchObject({ spotCode: undefined });
+  });
+
+  it("shows generated spot code preview text without requiring row label UI", () => {
+    expect(getGeneratedSpotCodePreviewText("B-021")).toBe("B-021");
+    expect(getGeneratedSpotCodePreviewText("")).toBe("Generated when created");
   });
 
   it("requires explicit delete confirmation copy", () => {

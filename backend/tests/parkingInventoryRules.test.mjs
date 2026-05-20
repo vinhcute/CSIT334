@@ -39,6 +39,16 @@ async function createServices() {
   };
 }
 
+async function createRawZone(name, zoneCode, capacity) {
+  return prisma.parkingZone.create({
+    data: {
+      name,
+      zoneCode,
+      capacity,
+    },
+  });
+}
+
 test("Parking inventory rules prevent creating more spots than zone capacity", async () => {
   const {
     ParkingSpotCapacityConflictError,
@@ -48,20 +58,15 @@ test("Parking inventory rules prevent creating more spots than zone capacity", a
 
   try {
     const zone = await parkingZoneService.createZone({
+      zoneCode: "IRA",
       name: "Inventory Rules Zone A",
       capacity: 1,
-    });
-    await parkingSpotService.createSpot({
-      zoneId: zone.id,
-      spotCode: "A-001",
-      status: "available",
     });
 
     await assert.rejects(
       () =>
         parkingSpotService.createSpot({
           zoneId: zone.id,
-          spotCode: "A-002",
           status: "available",
         }),
       (error) => error instanceof ParkingSpotCapacityConflictError,
@@ -72,14 +77,11 @@ test("Parking inventory rules prevent creating more spots than zone capacity", a
 });
 
 test("Parking inventory rules allow creating a spot below zone capacity", async () => {
-  const { parkingSpotService, parkingZoneService } = await createServices();
+  const { parkingSpotService } = await createServices();
   await cleanup();
 
   try {
-    const zone = await parkingZoneService.createZone({
-      name: "Inventory Rules Zone A",
-      capacity: 2,
-    });
+    const zone = await createRawZone("Inventory Rules Zone A", "IRA", 2);
     const spot = await parkingSpotService.createSpot({
       zoneId: zone.id,
       spotCode: "A-001",
@@ -97,18 +99,12 @@ test("Parking inventory rules prevent moving a spot into a full zone", async () 
   const {
     ParkingSpotCapacityConflictError,
   } = await import("../dist/services/parkingSpotService.js");
-  const { parkingSpotService, parkingZoneService } = await createServices();
+  const { parkingSpotService } = await createServices();
   await cleanup();
 
   try {
-    const fullZone = await parkingZoneService.createZone({
-      name: "Inventory Rules Zone A",
-      capacity: 1,
-    });
-    const sourceZone = await parkingZoneService.createZone({
-      name: "Inventory Rules Zone B",
-      capacity: 2,
-    });
+    const fullZone = await createRawZone("Inventory Rules Zone A", "IRA", 1);
+    const sourceZone = await createRawZone("Inventory Rules Zone B", "IRB", 2);
     await parkingSpotService.createSpot({
       zoneId: fullZone.id,
       spotCode: "A-001",
@@ -141,10 +137,7 @@ test("Parking inventory rules prevent reducing capacity below existing spot coun
   await cleanup();
 
   try {
-    const zone = await parkingZoneService.createZone({
-      name: "Inventory Rules Zone A",
-      capacity: 3,
-    });
+    const zone = await createRawZone("Inventory Rules Zone A", "IRA", 3);
     await parkingSpotService.createSpot({
       zoneId: zone.id,
       spotCode: "A-001",
@@ -174,13 +167,9 @@ test("Parking inventory rules allow increasing zone capacity", async () => {
 
   try {
     const zone = await parkingZoneService.createZone({
+      zoneCode: "IRA",
       name: "Inventory Rules Zone A",
       capacity: 1,
-    });
-    await parkingSpotService.createSpot({
-      zoneId: zone.id,
-      spotCode: "A-001",
-      status: "available",
     });
     const updated = await parkingZoneService.updateZone(zone.id, { capacity: 3 });
 
@@ -195,10 +184,7 @@ test("Parking inventory rules keep zone capacity manually managed", async () => 
   await cleanup();
 
   try {
-    const zone = await parkingZoneService.createZone({
-      name: "Inventory Rules Manual Zone",
-      capacity: 2,
-    });
+    const zone = await createRawZone("Inventory Rules Manual Zone", "IRM", 2);
     const spot = await parkingSpotService.createSpot({
       zoneId: zone.id,
       spotCode: "M-001",
@@ -211,6 +197,38 @@ test("Parking inventory rules keep zone capacity manually managed", async () => 
 
     assert.equal(afterCreate.capacity, 2);
     assert.equal(afterDelete.capacity, 2);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Parking inventory capacity rules are unchanged when zone uses default spot level", async () => {
+  const {
+    ParkingSpotCapacityConflictError,
+  } = await import("../dist/services/parkingSpotService.js");
+  const { parkingSpotService, parkingZoneService } = await createServices();
+  await cleanup();
+
+  try {
+    const zone = await parkingZoneService.createZone({
+      zoneCode: "IRD",
+      name: "Inventory Rules Zone A",
+      capacity: 1,
+      defaultSpotLevel: "Level 2",
+    });
+
+    const generatedSpots = await prisma.parkingSpot.findMany({ where: { zoneId: zone.id } });
+    assert.equal(generatedSpots.length, 1);
+    assert.equal(generatedSpots[0].level, "Level 2");
+
+    await assert.rejects(
+      () =>
+        parkingSpotService.createSpot({
+          zoneId: zone.id,
+          status: "available",
+        }),
+      (error) => error instanceof ParkingSpotCapacityConflictError,
+    );
   } finally {
     await cleanup();
   }

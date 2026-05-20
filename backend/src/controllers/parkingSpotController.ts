@@ -3,6 +3,7 @@ import {
   DuplicateParkingSpotCodeError,
   ParkingSpotCapacityConflictError,
   ParkingSpotNotFoundError,
+  ParkingSpotRangeConflictError,
   ParkingSpotService,
   ParkingSpotValidationError,
   ParkingSpotZoneNotFoundError,
@@ -13,11 +14,13 @@ export class ParkingSpotController {
 
   index = async (request: Request, response: Response): Promise<void> => {
     try {
-      const parkingSpots = await this.parkingSpotService.listSpots({
+      const result = await this.parkingSpotService.listSpotsPaginated({
         zoneId: request.query.zoneId,
         status: request.query.status,
+        page: request.query.page,
+        pageSize: request.query.pageSize,
       });
-      response.json({ parkingSpots });
+      response.json(result);
     } catch (error) {
       this.handleError(error, response);
     }
@@ -30,6 +33,22 @@ export class ParkingSpotController {
         status: request.query.status,
       });
       response.json({ parkingSpots });
+    } catch (error) {
+      this.handleError(error, response);
+    }
+  };
+
+  nextSpotCode = async (request: Request, response: Response): Promise<void> => {
+    const parkingZoneId = request.params.zoneId;
+
+    if (typeof parkingZoneId !== "string") {
+      response.status(400).json({ error: "Parking zone ID is required." });
+      return;
+    }
+
+    try {
+      const spotCode = await this.parkingSpotService.getNextSpotCodeForZone(parkingZoneId);
+      response.json({ spotCode });
     } catch (error) {
       this.handleError(error, response);
     }
@@ -79,6 +98,15 @@ export class ParkingSpotController {
     }
   };
 
+  bulkLevelUpdate = async (request: Request, response: Response): Promise<void> => {
+    try {
+      const result = await this.parkingSpotService.bulkUpdateSpotLevel(request.body);
+      response.json(result);
+    } catch (error) {
+      this.handleError(error, response);
+    }
+  };
+
   private handleError(error: unknown, response: Response): void {
     if (error instanceof ParkingSpotValidationError) {
       response.status(400).json({ error: error.message, issues: error.issues });
@@ -91,6 +119,11 @@ export class ParkingSpotController {
     }
 
     if (error instanceof ParkingSpotCapacityConflictError) {
+      response.status(409).json({ error: error.message });
+      return;
+    }
+
+    if (error instanceof ParkingSpotRangeConflictError) {
       response.status(409).json({ error: error.message });
       return;
     }

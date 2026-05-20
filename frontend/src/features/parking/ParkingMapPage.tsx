@@ -11,6 +11,7 @@ import {
   type ParkingSpotStatus,
 } from "../../services/parkingSpotsApi.js";
 import { createParkingEventsApi } from "../../services/parkingEventsApi.js";
+import type { UserRole } from "../auth/authTypes.js";
 
 const sharedApiClient = createApiClient();
 
@@ -47,6 +48,30 @@ export function getParkingMapStatusClass(status: ParkingSpotStatus): string {
   return `map-status map-status-${status}`;
 }
 
+export function isSpotBookable(status: ParkingSpotStatus, role: UserRole): boolean {
+  return role === "driver" && status === "available";
+}
+
+export function getSpotBookabilityMessage(status: ParkingSpotStatus, role: UserRole): string | null {
+  if (role !== "driver") {
+    return "Only drivers can create bookings from the map.";
+  }
+
+  if (status === "available") {
+    return null;
+  }
+
+  if (status === "occupied") {
+    return "This spot is currently occupied.";
+  }
+
+  if (status === "reserved") {
+    return "This spot is already reserved.";
+  }
+
+  return "This spot is under maintenance.";
+}
+
 export function getParkingSpotTileClass(status: ParkingSpotStatus, isSelected = false): string {
   return [
     "parking-map-spot",
@@ -81,7 +106,44 @@ export function getZoneNameById(zones: ZoneOccupancySummary[]): Map<string, stri
   return new Map(zones.map((zone) => [zone.zoneId, zone.name]));
 }
 
-export function ParkingMapPage() {
+export function getSelectedSpotDetailRows(
+  selectedSpot: Pick<ParkingSpot, "level">,
+  zone: Pick<ZoneOccupancySummary, "availableSpots" | "capacity"> | null,
+): Array<{ label: string; value: string }> {
+  return [
+    {
+      label: "Level",
+      value: selectedSpot.level ?? "Standard",
+    },
+    {
+      label: "Zone availability",
+      value: zone ? `${zone.availableSpots} / ${zone.capacity} available` : "Not available",
+    },
+  ];
+}
+
+export async function loadParkingMapViewModel(
+  occupancyApi: Pick<ReturnType<typeof createOccupancyApi>, "getSummary">,
+  parkingSpotsApi: Pick<ReturnType<typeof createParkingSpotsApi>, "listAllSpots">,
+): Promise<ParkingMapViewModel> {
+  const [summaryResponse, spots] = await Promise.all([
+    occupancyApi.getSummary(),
+    parkingSpotsApi.listAllSpots(),
+  ]);
+
+  return {
+    zones: summaryResponse.summary.zones,
+    spots,
+  };
+}
+
+export function ParkingMapPage({
+  onStartBooking,
+  viewerRole = "driver",
+}: {
+  onStartBooking?: (spotId: string) => void;
+  viewerRole?: UserRole;
+}) {
   const occupancyApi = useMemo(() => createOccupancyApi(sharedApiClient), []);
   const parkingSpotsApi = useMemo(() => createParkingSpotsApi(sharedApiClient), []);
   const parkingEventsApi = useMemo(() => createParkingEventsApi(sharedApiClient), []);
@@ -99,17 +161,10 @@ export function ParkingMapPage() {
     setError(null);
 
     try {
-      const [summaryResponse, spotsResponse] = await Promise.all([
-        occupancyApi.getSummary(),
-        parkingSpotsApi.listSpots(),
-      ]);
-      const nextViewModel = {
-        zones: summaryResponse.summary.zones,
-        spots: spotsResponse.parkingSpots,
-      };
+      const nextViewModel = await loadParkingMapViewModel(occupancyApi, parkingSpotsApi);
 
       setViewModel(nextViewModel);
-      setSelectedSpotId(spotsResponse.parkingSpots[0]?.id ?? null);
+      setSelectedSpotId(nextViewModel.spots[0]?.id ?? null);
       setStatus(hasParkingMapData(nextViewModel) ? "ready" : "empty");
     } catch (loadError) {
       setStatus("error");
@@ -239,8 +294,10 @@ export function ParkingMapPage() {
         </div>
 
         <SelectedSpotPanel
+          onStartBooking={onStartBooking}
           selectedSpot={selectedSpot}
           summary={viewModel.zones}
+          viewerRole={viewerRole}
           zoneName={selectedSpot ? zoneNameById.get(selectedSpot.zoneId) ?? selectedSpot.zoneId : null}
         />
       </div>
@@ -249,12 +306,16 @@ export function ParkingMapPage() {
 }
 
 function SelectedSpotPanel({
+  onStartBooking,
   selectedSpot,
   summary,
+  viewerRole,
   zoneName,
 }: {
+  onStartBooking?: (spotId: string) => void;
   selectedSpot: ParkingSpot | null;
   summary: ZoneOccupancySummary[];
+  viewerRole: UserRole;
   zoneName: string | null;
 }) {
   if (!selectedSpot) {
@@ -268,6 +329,9 @@ function SelectedSpotPanel({
   }
 
   const zone = summary.find((candidate) => candidate.zoneId === selectedSpot.zoneId);
+  const isBookable = isSpotBookable(selectedSpot.status, viewerRole);
+  const nonBookableMessage = getSpotBookabilityMessage(selectedSpot.status, viewerRole);
+  const detailRows = getSelectedSpotDetailRows(selectedSpot, zone ?? null);
 
   return (
     <aside className="selected-spot-panel" aria-label="Selected parking spot">
@@ -279,21 +343,24 @@ function SelectedSpotPanel({
         {getParkingMapStatusText(selectedSpot.status)}
       </span>
       <dl className="selected-spot-list">
-        <div>
-          <dt>Level</dt>
-          <dd>{selectedSpot.level ?? "Standard"}</dd>
-        </div>
-        <div>
-          <dt>Row</dt>
-          <dd>{selectedSpot.rowLabel ?? "Not set"}</dd>
-        </div>
-        <div>
-          <dt>Zone availability</dt>
-          <dd>
-            {zone ? `${zone.availableSpots} / ${zone.capacity} available` : "Not available"}
-          </dd>
-        </div>
+        {detailRows.map((row) => (
+          <div key={row.label}>
+            <dt>{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
       </dl>
+      {isBookable ? (
+        <button
+          className="primary-button selected-spot-book-button"
+          onClick={() => onStartBooking?.(selectedSpot.id)}
+          type="button"
+        >
+          Book This Spot
+        </button>
+      ) : nonBookableMessage ? (
+        <p className="selected-spot-copy">{nonBookableMessage}</p>
+      ) : null}
     </aside>
   );
 }

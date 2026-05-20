@@ -4,6 +4,7 @@ import {
   canViewAdminUsers,
   getAccountActionForStatus,
   getAccountStatusClass,
+  getSubscriptionDisplayText,
   userSummaryHasSensitiveFields,
 } from "../src/features/admin/AdminUsersPage.js";
 
@@ -42,5 +43,32 @@ describe("admin users UI rules", () => {
     expect(userSummaryHasSensitiveFields({ id: "user-1", email: "driver@example.test" })).toBe(
       false,
     );
+  });
+
+  it("formats subscription state for admin account rows", () => {
+    expect(
+      getSubscriptionDisplayText({
+        id: "user-1",
+        email: "driver@example.test",
+        role: "driver",
+        accountStatus: "active",
+        subscription: {
+          status: "subscribed",
+          endTime: "2026-05-24T00:00:00.000Z",
+        },
+      }),
+    ).toContain("Subscribed until");
+    expect(
+      getSubscriptionDisplayText({
+        id: "user-2",
+        email: "driver2@example.test",
+        role: "driver",
+        accountStatus: "active",
+        subscription: {
+          status: "notSubscribed",
+          endTime: null,
+        },
+      }),
+    ).toBe("Not subscribed");
   });
 });

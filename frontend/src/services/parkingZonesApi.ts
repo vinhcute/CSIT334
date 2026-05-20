@@ -2,6 +2,7 @@ import { createApiClient } from "./apiClient.js";
 
 export interface ParkingZone {
   id: string;
+  zoneCode: string;
   name: string;
   description: string | null;
   capacity: number;
@@ -20,11 +21,13 @@ export interface ParkingZoneResponse {
 }
 
 export interface ParkingZoneRequest {
+  zoneCode?: string;
   name?: string;
   description?: string | null;
   capacity?: number;
   distanceFromEntryMeters?: number | null;
   displayOrder?: number;
+  defaultSpotLevel?: string;
 }
 
 export interface ParkingApiErrorBody {

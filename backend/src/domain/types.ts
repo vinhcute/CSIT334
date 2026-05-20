@@ -63,7 +63,7 @@ export interface NotificationSummary {
   notificationType: NotificationType;
 }
 
-export interface IncidentReportSummary {
+export interface IncidentReportStateSummary {
   incidentReportId: IncidentReportId;
   incidentStatus: IncidentStatus;
 }

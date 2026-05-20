@@ -445,7 +445,10 @@ test("Phase 03 end-to-end parking inventory and monitoring path works", async ()
   }
 });
 
-test("Phase 03 does not expose Phase 4 or Phase 5 workflows early", async () => {
+test.skip("Phase 03 does not expose Phase 4 or Phase 5 workflows early", async () => {
+  // Historical phase-boundary check retained for the Phase 03-only branch.
+  // This repository is now Phase 04-complete and Phase 05-ready, so Phase 04/05
+  // routes should be verified by their own phase tests instead of blocked here.
   const app = await createApp();
   await seedUsers();
   const server = await listen(app);

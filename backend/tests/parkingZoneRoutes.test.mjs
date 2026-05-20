@@ -28,6 +28,7 @@ const testZoneNames = [
   "Routes Duplicate Zone",
   "Routes Driver Read Zone",
   "Routes Delete Zone",
+  "Routes Generated Level Zone",
   "Routes Validation Zone",
 ];
 
@@ -143,6 +144,7 @@ test("Admin can create a parking zone", async () => {
       method: "POST",
       headers: authHeaders(token),
       body: {
+        zoneCode: "RZ",
         name: "Routes North Zone",
         description: "North route test zone.",
         capacity: 30,
@@ -152,10 +154,50 @@ test("Admin can create a parking zone", async () => {
     });
 
     assert.equal(result.statusCode, 201);
+    assert.equal(result.body.parkingZone.zoneCode, "RZ");
     assert.equal(result.body.parkingZone.name, "Routes North Zone");
     assert.equal(result.body.parkingZone.capacity, 30);
     assert.equal(result.body.parkingZone.distanceFromEntryMeters, 150);
     assert.equal(result.body.parkingZone.displayOrder, 2);
+    assert.equal(
+      await prisma.parkingSpot.count({ where: { zoneId: result.body.parkingZone.id } }),
+      30,
+    );
+    assert.equal(
+      await prisma.parkingSpot.count({
+        where: { zoneId: result.body.parkingZone.id, level: null },
+      }),
+      30,
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Admin can create a zone with default spot level for generated spots", async () => {
+  const app = await createApp();
+  await seedUsers();
+
+  try {
+    const token = await adminToken(app);
+    const result = await request(app, "/api/admin/parking-zones", {
+      method: "POST",
+      headers: authHeaders(token),
+      body: {
+        zoneCode: "RG",
+        name: "Routes Generated Level Zone",
+        capacity: 12,
+        defaultSpotLevel: "Level 2",
+      },
+    });
+
+    assert.equal(result.statusCode, 201);
+    const generatedSpots = await prisma.parkingSpot.findMany({
+      where: { zoneId: result.body.parkingZone.id },
+    });
+
+    assert.equal(generatedSpots.length, 12);
+    assert.equal(generatedSpots.every((spot) => spot.level === "Level 2"), true);
   } finally {
     await cleanup();
   }
@@ -171,6 +213,7 @@ test("Admin can update a parking zone", async () => {
       method: "POST",
       headers: authHeaders(token),
       body: {
+        zoneCode: "RL",
         name: "Routes Library Zone",
         capacity: 20,
       },
@@ -183,6 +226,7 @@ test("Admin can update a parking zone", async () => {
         headers: authHeaders(token),
         body: {
           description: "Updated library zone.",
+          zoneCode: "RLU",
           capacity: 24,
           distanceFromEntryMeters: 90,
           displayOrder: 1,
@@ -191,6 +235,7 @@ test("Admin can update a parking zone", async () => {
     );
 
     assert.equal(result.statusCode, 200);
+    assert.equal(result.body.parkingZone.zoneCode, "RLU");
     assert.equal(result.body.parkingZone.description, "Updated library zone.");
     assert.equal(result.body.parkingZone.capacity, 24);
     assert.equal(result.body.parkingZone.distanceFromEntryMeters, 90);
@@ -210,6 +255,7 @@ test("Admin can delete an empty parking zone", async () => {
       method: "POST",
       headers: authHeaders(token),
       body: {
+        zoneCode: "RD",
         name: "Routes Delete Zone",
         capacity: 10,
       },
@@ -244,6 +290,7 @@ test("Driver and unauthenticated users cannot use admin parking zone routes", as
       method: "POST",
       headers: authHeaders(token),
       body: {
+        zoneCode: "RF",
         name: "Routes North Zone",
         capacity: 10,
       },
@@ -251,6 +298,7 @@ test("Driver and unauthenticated users cannot use admin parking zone routes", as
     const unauthenticatedCreate = await request(app, "/api/admin/parking-zones", {
       method: "POST",
       body: {
+        zoneCode: "RF",
         name: "Routes North Zone",
         capacity: 10,
       },
@@ -272,6 +320,7 @@ test("Authenticated driver can read parking zones", async () => {
   try {
     await prisma.parkingZone.create({
       data: {
+        zoneCode: "RR",
         name: "Routes Driver Read Zone",
         capacity: 16,
         displayOrder: 1,
@@ -300,6 +349,7 @@ test("Parking zone routes return controlled validation, duplicate, and not-found
       method: "POST",
       headers: authHeaders(token),
       body: {
+        zoneCode: "",
         name: "   ",
         capacity: 0,
       },
@@ -308,6 +358,7 @@ test("Parking zone routes return controlled validation, duplicate, and not-found
       method: "POST",
       headers: authHeaders(token),
       body: {
+        zoneCode: "RDU",
         name: "Routes Duplicate Zone",
         capacity: 8,
       },
@@ -316,7 +367,17 @@ test("Parking zone routes return controlled validation, duplicate, and not-found
       method: "POST",
       headers: authHeaders(token),
       body: {
+        zoneCode: "RDX",
         name: "Routes Duplicate Zone",
+        capacity: 12,
+      },
+    });
+    const duplicateCode = await request(app, "/api/admin/parking-zones", {
+      method: "POST",
+      headers: authHeaders(token),
+      body: {
+        zoneCode: "RDU",
+        name: "Routes Validation Zone",
         capacity: 12,
       },
     });
@@ -329,10 +390,15 @@ test("Parking zone routes return controlled validation, duplicate, and not-found
     assert.equal(invalid.statusCode, 400);
     assert.equal(invalid.body.error, "Parking zone input is invalid.");
     assert.equal(invalid.body.issues.includes("Parking zone name is required."), true);
+    assert.equal(invalid.body.issues.includes("Zone ID is required."), true);
     assert.equal(invalid.body.issues.includes("Capacity must be at least 1."), true);
     assert.equal(duplicate.statusCode, 409);
     assert.deepEqual(duplicate.body, {
       error: "A parking zone with this name already exists.",
+    });
+    assert.equal(duplicateCode.statusCode, 409);
+    assert.deepEqual(duplicateCode.body, {
+      error: "A parking zone with this Zone ID already exists.",
     });
     assert.equal(missing.statusCode, 404);
     assert.deepEqual(missing.body, { error: "Parking zone not found." });

@@ -3,6 +3,14 @@ import { ParkingSpotRepository } from "../repositories/parkingSpotRepository.js"
 import { ParkingZoneRepository } from "../repositories/parkingZoneRepository.js";
 
 const parkingZoneSchema = z.object({
+  zoneCode: z
+    .string()
+    .trim()
+    .min(1, "Zone ID is required.")
+    .transform((value) => value.toUpperCase())
+    .refine((value) => /^[A-Z]{1,4}$/.test(value), {
+      message: "Zone ID must use 1 to 4 uppercase letters.",
+    }),
   name: z.string().trim().min(1, "Parking zone name is required."),
   description: z.string().trim().optional(),
   capacity: z.number().int("Capacity must be a whole number.").min(1, "Capacity must be at least 1."),
@@ -16,9 +24,42 @@ const parkingZoneSchema = z.object({
     .int("Display order must be a whole number.")
     .min(0, "Display order cannot be negative.")
     .optional(),
+  defaultSpotLevel: z
+    .string()
+    .trim()
+    .max(50, "Default spot level cannot exceed 50 characters.")
+    .optional(),
 });
 
-const updateParkingZoneSchema = parkingZoneSchema
+const updateParkingZoneSchema = z
+  .object({
+    zoneCode: z
+      .string()
+      .trim()
+      .min(1, "Zone ID is required.")
+      .transform((value) => value.toUpperCase())
+      .refine((value) => /^[A-Z]{1,4}$/.test(value), {
+        message: "Zone ID must use 1 to 4 uppercase letters.",
+      })
+      .optional(),
+    name: z.string().trim().min(1, "Parking zone name is required.").optional(),
+    description: z.string().trim().optional(),
+    capacity: z
+      .number()
+      .int("Capacity must be a whole number.")
+      .min(1, "Capacity must be at least 1.")
+      .optional(),
+    distanceFromEntryMeters: z
+      .number()
+      .int("Distance from entry must be a whole number.")
+      .min(0, "Distance from entry cannot be negative.")
+      .optional(),
+    displayOrder: z
+      .number()
+      .int("Display order must be a whole number.")
+      .min(0, "Display order cannot be negative.")
+      .optional(),
+  })
   .partial()
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one parking zone field is required.",
@@ -38,6 +79,13 @@ export class DuplicateParkingZoneNameError extends Error {
   constructor() {
     super("A parking zone with this name already exists.");
     this.name = "DuplicateParkingZoneNameError";
+  }
+}
+
+export class DuplicateParkingZoneCodeError extends Error {
+  constructor() {
+    super("A parking zone with this Zone ID already exists.");
+    this.name = "DuplicateParkingZoneCodeError";
   }
 }
 
@@ -85,8 +133,15 @@ export class ParkingZoneService {
     }
 
     await this.assertZoneNameAvailable(parsed.data.name);
+    await this.assertZoneCodeAvailable(parsed.data.zoneCode);
+    const { defaultSpotLevel: defaultSpotLevelInput, ...parkingZoneInput } = parsed.data;
+    const defaultSpotLevel = defaultSpotLevelInput?.trim();
 
-    return this.parkingZoneRepository.create(parsed.data);
+    return this.parkingZoneRepository.createWithSpots(
+      parkingZoneInput,
+      generateSpotCodes(parsed.data.zoneCode, parsed.data.capacity),
+      defaultSpotLevel && defaultSpotLevel.length > 0 ? defaultSpotLevel : undefined,
+    );
   }
 
   async updateZone(id: string, input: UpdateParkingZoneInput) {
@@ -104,6 +159,10 @@ export class ParkingZoneService {
 
     if (parsed.data.name && parsed.data.name !== existing.name) {
       await this.assertZoneNameAvailable(parsed.data.name);
+    }
+
+    if (parsed.data.zoneCode && parsed.data.zoneCode !== existing.zoneCode) {
+      await this.assertZoneCodeAvailable(parsed.data.zoneCode);
     }
 
     if (parsed.data.capacity !== undefined) {
@@ -131,6 +190,14 @@ export class ParkingZoneService {
     }
   }
 
+  private async assertZoneCodeAvailable(zoneCode: string): Promise<void> {
+    const existing = await this.parkingZoneRepository.findByZoneCode(zoneCode);
+
+    if (existing) {
+      throw new DuplicateParkingZoneCodeError();
+    }
+  }
+
   private async assertCapacityCanHoldExistingSpots(
     zoneId: string,
     requestedCapacity: number,
@@ -141,4 +208,10 @@ export class ParkingZoneService {
       throw new ParkingZoneCapacityConflictError(existingSpotCount, requestedCapacity);
     }
   }
+}
+
+function generateSpotCodes(zoneCode: string, capacity: number): string[] {
+  return Array.from({ length: capacity }, (_, index) => (
+    `${zoneCode}-${String(index + 1).padStart(3, "0")}`
+  ));
 }

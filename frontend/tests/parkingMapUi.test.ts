@@ -5,12 +5,16 @@ import {
   PARKING_MAP_STATUS_ORDER,
   ParkingMapPage,
   filterParkingSpotsByZone,
+  getSelectedSpotDetailRows,
+  loadParkingMapViewModel,
+  getSpotBookabilityMessage,
   getParkingMapErrorMessage,
   getParkingMapStatusClass,
   getParkingMapStatusText,
   getParkingSpotTileClass,
   getZoneNameById,
   hasParkingMapData,
+  isSpotBookable,
   type ParkingMapViewModel,
 } from "../src/features/parking/ParkingMapPage.js";
 import type { ParkingSpot } from "../src/services/parkingSpotsApi.js";
@@ -104,6 +108,64 @@ describe("parking map UI rules", () => {
     expect(zoneNameById.get("missing-zone")).toBeUndefined();
   });
 
+  it("loads the full spot dataset across paginated responses", async () => {
+    const summaryApi = {
+      getSummary: async () => ({
+        summary: {
+          totalCapacity: 3,
+          totalAvailableSpots: 1,
+          totalOccupiedSpots: 1,
+          totalReservedSpots: 1,
+          zones,
+        },
+      }),
+    };
+    const paginatedSpots = [
+      ...Array.from({ length: 20 }, (_, index) => ({
+        ...spots[0],
+        id: `spot-page-1-${index + 1}`,
+        spotCode: `B-${String(index + 1).padStart(3, "0")}`,
+      })),
+      {
+        ...spots[1],
+        id: "spot-page-2-1",
+        spotCode: "B-021",
+        level: "Level 2",
+        rowLabel: "B",
+      },
+    ];
+    const parkingSpotsApi = {
+      listAllSpots: async () => paginatedSpots,
+    };
+
+    const viewModel = await loadParkingMapViewModel(summaryApi, parkingSpotsApi);
+
+    expect(viewModel.zones).toEqual(zones);
+    expect(viewModel.spots).toHaveLength(21);
+    expect(viewModel.spots.some((spot) => spot.spotCode === "B-021")).toBe(true);
+  });
+
+  it("keeps selected-spot fields driven by real API spot values", () => {
+    const selectedSpot = {
+      ...spots[2],
+      level: "Level 3",
+      rowLabel: "B",
+    };
+
+    expect(selectedSpot.id).toBe("spot-b1");
+    expect(selectedSpot.zoneId).toBe("zone-b");
+    expect(getZoneNameById(zones).get(selectedSpot.zoneId)).toBe("Zone B");
+    expect(selectedSpot.spotCode).toBe("B-1");
+    expect(getParkingMapStatusText(selectedSpot.status)).toBe("Reserved");
+    const selectedRows = getSelectedSpotDetailRows(selectedSpot, zones[1]);
+
+    expect(selectedRows.find((row) => row.label === "Level")?.value).toBe("Level 3");
+    expect(selectedRows.find((row) => row.label === "Zone availability")?.value).toBe(
+      "0 / 1 available",
+    );
+    expect(selectedRows.some((row) => row.label === "Row")).toBe(false);
+  });
+
   it("uses readable labels and distinct colour classes for every spot status", () => {
     expect(PARKING_MAP_STATUS_ORDER).toEqual([
       "available",
@@ -119,10 +181,22 @@ describe("parking map UI rules", () => {
     expect(getParkingSpotTileClass("occupied")).toContain("parking-map-spot-occupied");
   });
 
-  it("does not expose a booking action in the map helper output", () => {
-    const labels = PARKING_MAP_STATUS_ORDER.map(getParkingMapStatusText).join(" ");
+  it("only allows booking for drivers on available spots", () => {
+    expect(isSpotBookable("available", "driver")).toBe(true);
+    expect(isSpotBookable("occupied", "driver")).toBe(false);
+    expect(isSpotBookable("reserved", "driver")).toBe(false);
+    expect(isSpotBookable("maintenanceRequired", "driver")).toBe(false);
+    expect(isSpotBookable("available", "admin")).toBe(false);
+  });
 
-    expect(labels).not.toContain("Book");
+  it("returns readable non-bookable reasons for selected spots", () => {
+    expect(getSpotBookabilityMessage("available", "driver")).toBeNull();
+    expect(getSpotBookabilityMessage("occupied", "driver")).toContain("occupied");
+    expect(getSpotBookabilityMessage("reserved", "driver")).toContain("reserved");
+    expect(getSpotBookabilityMessage("maintenanceRequired", "driver")).toContain(
+      "maintenance",
+    );
+    expect(getSpotBookabilityMessage("available", "admin")).toContain("Only drivers");
   });
 
   it("keeps status words out of compact map tile class names", () => {

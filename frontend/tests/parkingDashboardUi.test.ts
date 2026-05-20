@@ -4,8 +4,11 @@ import type { OccupancySummary, ZoneOccupancySummary } from "../src/services/occ
 import {
   ParkingDashboardPage,
   buildDashboardStats,
+  formatRecommendationAvailability,
+  formatRecommendationDistance,
   getCampusOccupancyRate,
   getParkingDashboardErrorMessage,
+  getRecommendationStatus,
   getZoneAvailabilityLabel,
   getZoneAvailabilityTone,
   getZoneAvailablePercentage,
@@ -71,6 +74,42 @@ describe("parking dashboard availability UI rules", () => {
     ]);
     expect(stats.map((stat) => stat.label)).not.toContain("Active Bookings");
     expect(stats.map((stat) => stat.label)).not.toContain("Recommendations");
+  });
+
+  it("keeps recommendation helpers separate from core occupancy summary", () => {
+    expect(getRecommendationStatus(null)).toBe("idle");
+    expect(
+      formatRecommendationAvailability({
+        type: "nearestAvailableZone",
+        zoneId: "zone-a",
+        zoneName: "North Lot",
+        distanceFromEntryMeters: 120,
+        displayOrder: 1,
+        capacity: 20,
+        availableSpots: 12,
+        occupiedSpots: 6,
+        reservedSpots: 2,
+        maintenanceRequiredSpots: 0,
+        occupancyRate: 40,
+        reason: "12 available spots, 40.00% occupied, 120m from entry.",
+      }),
+    ).toBe("12 of 20 spots available");
+    expect(
+      formatRecommendationDistance({
+        type: "nearestAvailableZone",
+        zoneId: "zone-a",
+        zoneName: "North Lot",
+        distanceFromEntryMeters: null,
+        displayOrder: 1,
+        capacity: 20,
+        availableSpots: 12,
+        occupiedSpots: 6,
+        reservedSpots: 2,
+        maintenanceRequiredSpots: 0,
+        occupancyRate: 40,
+        reason: "12 available spots, 40.00% occupied, distance unavailable.",
+      }),
+    ).toBe("Distance unavailable");
   });
 
   it("detects loading-ready data and empty availability states", () => {

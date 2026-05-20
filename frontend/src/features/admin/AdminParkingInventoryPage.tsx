@@ -13,6 +13,7 @@ import {
 import {
   createParkingSpotsApi,
   type ParkingSpot,
+  type ParkingSpotsPagination,
   type ParkingSpotRequest,
   type ParkingSpotStatus,
 } from "../../services/parkingSpotsApi.js";
@@ -27,11 +28,13 @@ import type { SafeUser } from "../auth/authTypes.js";
 const sharedApiClient = createApiClient();
 const PARKING_API_SERVER_HINT =
   "Make sure the backend API server is running on http://127.0.0.1:3000, then retry.";
+const SPOT_PAGE_SIZE = 20;
 
 export type AdminParkingInventoryView = "zones" | "spots";
 type InventoryStatus = "loading" | "ready" | "empty" | "error";
 type ZoneFormMode = "create" | "edit";
 type SpotFormMode = "create" | "edit";
+export type SpotPanelMode = "none" | "createSpot" | "bulkLevel";
 
 export const PARKING_SPOT_STATUS_OPTIONS: ParkingSpotStatus[] = [
   "available",
@@ -41,18 +44,36 @@ export const PARKING_SPOT_STATUS_OPTIONS: ParkingSpotStatus[] = [
 ];
 
 export interface ZoneFormValues {
+  zoneCode: string;
   name: string;
   capacity: string;
   description: string;
   distanceFromEntryMeters: string;
   displayOrder: string;
+  defaultSpotLevel: string;
 }
 
 export interface ZoneFormErrors {
+  zoneCode?: string;
   name?: string;
   capacity?: string;
   distanceFromEntryMeters?: string;
   displayOrder?: string;
+}
+
+export interface BulkLevelFormValues {
+  zoneId: string;
+  level: string;
+  targetMode: "all" | "range";
+  rangeFrom: string;
+  rangeTo: string;
+}
+
+export interface BulkLevelFormErrors {
+  zoneId?: string;
+  level?: string;
+  rangeFrom?: string;
+  rangeTo?: string;
 }
 
 export interface SpotFormValues {
@@ -72,6 +93,7 @@ export interface SpotFormErrors {
 export interface ParkingInventoryViewModel {
   zones: Array<ParkingZone & Partial<ZoneOccupancySummary>>;
   spots: ParkingSpot[];
+  spotPagination: ParkingSpotsPagination;
   summary: OccupancySummary | null;
 }
 
@@ -165,22 +187,26 @@ export function getZoneOperationalStatus(
 
 export function createEmptyZoneFormValues(): ZoneFormValues {
   return {
+    zoneCode: "",
     name: "",
     capacity: "",
     description: "",
     distanceFromEntryMeters: "",
     displayOrder: "",
+    defaultSpotLevel: "",
   };
 }
 
 export function createZoneFormValues(zone: ParkingZone): ZoneFormValues {
   return {
+    zoneCode: zone.zoneCode,
     name: zone.name,
     capacity: String(zone.capacity),
     description: zone.description ?? "",
     distanceFromEntryMeters:
       zone.distanceFromEntryMeters === null ? "" : String(zone.distanceFromEntryMeters),
     displayOrder: String(zone.displayOrder),
+    defaultSpotLevel: "",
   };
 }
 
@@ -193,6 +219,13 @@ export function validateZoneForm(values: ZoneFormValues): ZoneFormErrors {
       : Number(values.distanceFromEntryMeters);
   const displayOrder =
     values.displayOrder.trim() === "" ? null : Number(values.displayOrder);
+  const normalizedZoneCode = values.zoneCode.trim().toUpperCase();
+
+  if (normalizedZoneCode === "") {
+    errors.zoneCode = "Zone ID is required";
+  } else if (!/^[A-Z]{1,4}$/.test(normalizedZoneCode)) {
+    errors.zoneCode = "Zone ID must use 1 to 4 uppercase letters";
+  }
 
   if (values.name.trim() === "") {
     errors.name = "Zone name is required";
@@ -221,7 +254,10 @@ export function zoneFormHasErrors(errors: ZoneFormErrors): boolean {
 }
 
 export function toParkingZoneRequest(values: ZoneFormValues): ParkingZoneRequest {
+  const defaultSpotLevel = values.defaultSpotLevel.trim();
+
   return {
+    zoneCode: values.zoneCode.trim().toUpperCase(),
     name: values.name.trim(),
     capacity: Number(values.capacity),
     description: values.description.trim() || null,
@@ -230,7 +266,95 @@ export function toParkingZoneRequest(values: ZoneFormValues): ParkingZoneRequest
         ? null
         : Number(values.distanceFromEntryMeters),
     displayOrder: values.displayOrder.trim() === "" ? 0 : Number(values.displayOrder),
+    defaultSpotLevel: defaultSpotLevel || undefined,
   };
+}
+
+export function createBulkLevelFormValues(defaultZoneId = ""): BulkLevelFormValues {
+  return {
+    zoneId: defaultZoneId,
+    level: "",
+    targetMode: "all",
+    rangeFrom: "",
+    rangeTo: "",
+  };
+}
+
+export function createDefaultSpotPanelMode(): SpotPanelMode {
+  return "none";
+}
+
+export function shouldShowSpotEditorPanel(mode: SpotPanelMode): boolean {
+  return mode === "createSpot";
+}
+
+export function shouldShowBulkLevelPanel(mode: SpotPanelMode): boolean {
+  return mode === "bulkLevel";
+}
+
+export function validateBulkLevelForm(
+  values: BulkLevelFormValues,
+  zones: Pick<ParkingZone, "id">[],
+): BulkLevelFormErrors {
+  const errors: BulkLevelFormErrors = {};
+
+  if (!zones.some((zone) => zone.id === values.zoneId)) {
+    errors.zoneId = "Choose an existing zone";
+  }
+
+  if (values.level.trim() === "") {
+    errors.level = "Level is required";
+  }
+
+  if (values.targetMode === "range") {
+    const from = Number(values.rangeFrom);
+    const to = Number(values.rangeTo);
+
+    if (values.rangeFrom.trim() === "") {
+      errors.rangeFrom = "From number is required";
+    } else if (!Number.isInteger(from) || from < 1) {
+      errors.rangeFrom = "From number must be a whole number from 1";
+    }
+
+    if (values.rangeTo.trim() === "") {
+      errors.rangeTo = "To number is required";
+    } else if (!Number.isInteger(to) || to < 1) {
+      errors.rangeTo = "To number must be a whole number from 1";
+    }
+
+    if (
+      errors.rangeFrom === undefined &&
+      errors.rangeTo === undefined &&
+      from > to
+    ) {
+      errors.rangeTo = "To number must be greater than or equal to from number";
+    }
+  }
+
+  return errors;
+}
+
+export function bulkLevelFormHasErrors(errors: BulkLevelFormErrors): boolean {
+  return Object.values(errors).some(Boolean);
+}
+
+export function getBulkLevelRangePreview(
+  values: BulkLevelFormValues,
+  zones: Pick<ParkingZone, "id" | "zoneCode">[],
+): string | null {
+  if (values.targetMode !== "range") {
+    return null;
+  }
+
+  const zone = zones.find((candidate) => candidate.id === values.zoneId);
+  const from = Number(values.rangeFrom);
+  const to = Number(values.rangeTo);
+
+  if (!zone || !Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to < from) {
+    return null;
+  }
+
+  return `Will update ${zone.zoneCode}-${String(from).padStart(3, "0")} to ${zone.zoneCode}-${String(to).padStart(3, "0")}`;
 }
 
 export function getZoneDeleteConfirmationMessage(zone: ParkingZone): string {
@@ -267,10 +391,6 @@ export function validateSpotForm(
     errors.zoneId = "Choose an existing zone";
   }
 
-  if (values.spotCode.trim() === "") {
-    errors.spotCode = "Spot code is required";
-  }
-
   if (!isParkingSpotStatus(values.status)) {
     errors.status = "Choose a valid status";
   }
@@ -285,11 +405,15 @@ export function spotFormHasErrors(errors: SpotFormErrors): boolean {
 export function toParkingSpotRequest(values: SpotFormValues): ParkingSpotRequest {
   return {
     zoneId: values.zoneId,
-    spotCode: values.spotCode.trim(),
+    spotCode: values.spotCode.trim() || undefined,
     status: isParkingSpotStatus(values.status) ? values.status : undefined,
     level: values.level.trim() || null,
     rowLabel: values.rowLabel.trim() || null,
   };
+}
+
+export function getGeneratedSpotCodePreviewText(spotCode: string): string {
+  return spotCode.trim() || "Generated when created";
 }
 
 export function getSpotDeleteConfirmationMessage(spot: ParkingSpot): string {
@@ -326,10 +450,25 @@ export function AdminParkingInventoryPage({
     createEmptySpotFormValues(),
   );
   const [spotFormErrors, setSpotFormErrors] = useState<SpotFormErrors>({});
+  const [activeSpotPanel, setActiveSpotPanel] = useState<SpotPanelMode>(
+    createDefaultSpotPanelMode(),
+  );
   const [pendingDeleteSpot, setPendingDeleteSpot] = useState<ParkingSpot | null>(null);
+  const [bulkLevelValues, setBulkLevelValues] = useState<BulkLevelFormValues>(
+    createBulkLevelFormValues(),
+  );
+  const [bulkLevelErrors, setBulkLevelErrors] = useState<BulkLevelFormErrors>({});
+  const [isBulkUpdatingLevel, setIsBulkUpdatingLevel] = useState(false);
+  const [spotPage, setSpotPage] = useState(1);
   const [inventory, setInventory] = useState<ParkingInventoryViewModel>({
     zones: [],
     spots: [],
+    spotPagination: {
+      page: 1,
+      pageSize: SPOT_PAGE_SIZE,
+      total: 0,
+      totalPages: 1,
+    },
     summary: null,
   });
 
@@ -348,7 +487,7 @@ export function AdminParkingInventoryPage({
     try {
       const [zonesResult, spotsResult, occupancyResult] = await Promise.allSettled([
         parkingZonesApi.listZones(),
-        parkingSpotsApi.listSpots(),
+        parkingSpotsApi.listSpots({ page: spotPage, pageSize: SPOT_PAGE_SIZE }),
         occupancyApi.getSummary(),
       ]);
       if (zonesResult.status === "rejected") {
@@ -367,6 +506,12 @@ export function AdminParkingInventoryPage({
           occupancySummary,
         ),
         spots: spotsResult.value.parkingSpots,
+        spotPagination: spotsResult.value.pagination ?? {
+          page: spotPage,
+          pageSize: SPOT_PAGE_SIZE,
+          total: spotsResult.value.parkingSpots.length,
+          totalPages: 1,
+        },
         summary: occupancySummary,
       };
 
@@ -381,7 +526,7 @@ export function AdminParkingInventoryPage({
       setStatus("error");
       setError(getParkingInventoryErrorMessage(loadError));
     }
-  }, [occupancyApi, parkingSpotsApi, parkingZonesApi, user]);
+  }, [occupancyApi, parkingSpotsApi, parkingZonesApi, spotPage, user]);
 
   useEffect(() => {
     void loadInventory();
@@ -399,6 +544,49 @@ export function AdminParkingInventoryPage({
       }));
     }
   }, [inventory.zones, spotFormMode, spotFormValues.zoneId]);
+
+  useEffect(() => {
+    if (bulkLevelValues.zoneId === "" && inventory.zones.length > 0) {
+      setBulkLevelValues((currentValues) => ({
+        ...currentValues,
+        zoneId: inventory.zones[0].id,
+      }));
+    }
+  }, [bulkLevelValues.zoneId, inventory.zones]);
+
+  useEffect(() => {
+    if (spotFormMode !== "create" || spotFormValues.zoneId === "") {
+      return;
+    }
+
+    let isCurrent = true;
+
+    async function loadNextSpotCode() {
+      try {
+        const result = await parkingSpotsApi.getNextSpotCode(spotFormValues.zoneId);
+
+        if (isCurrent) {
+          setSpotFormValues((currentValues) => ({
+            ...currentValues,
+            spotCode: result.spotCode,
+          }));
+        }
+      } catch {
+        if (isCurrent) {
+          setSpotFormValues((currentValues) => ({
+            ...currentValues,
+            spotCode: "",
+          }));
+        }
+      }
+    }
+
+    void loadNextSpotCode();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [parkingSpotsApi, spotFormMode, spotFormValues.zoneId]);
 
   function startCreateZone() {
     setActiveView("zones");
@@ -426,6 +614,8 @@ export function AdminParkingInventoryPage({
 
   function startCreateSpot() {
     setActiveView("spots");
+    setSpotPage(1);
+    setActiveSpotPanel("createSpot");
     setSpotFormMode("create");
     setSelectedSpot(null);
     setSpotFormValues(createEmptySpotFormValues(inventory.zones[0]?.id ?? ""));
@@ -438,6 +628,7 @@ export function AdminParkingInventoryPage({
 
   function startEditSpot(spot: ParkingSpot) {
     setActiveView("spots");
+    setActiveSpotPanel("createSpot");
     setSpotFormMode("edit");
     setSelectedSpot(spot);
     setSpotFormValues(createSpotFormValues(spot));
@@ -527,6 +718,7 @@ export function AdminParkingInventoryPage({
       setSelectedSpot(null);
       setSpotFormValues(createEmptySpotFormValues(spotFormValues.zoneId));
       setSpotFormErrors({});
+      setActiveSpotPanel("none");
       await loadInventory();
     } catch (submitError) {
       setError(getParkingInventoryErrorMessage(submitError));
@@ -550,11 +742,47 @@ export function AdminParkingInventoryPage({
         setSpotFormMode("create");
         setSelectedSpot(null);
         setSpotFormValues(createEmptySpotFormValues(inventory.zones[0]?.id ?? ""));
+        setActiveSpotPanel("none");
       }
 
       await loadInventory();
     } catch (deleteError) {
       setError(getParkingInventoryErrorMessage(deleteError));
+    }
+  }
+
+  async function submitBulkLevelUpdate() {
+    const nextErrors = validateBulkLevelForm(bulkLevelValues, inventory.zones);
+
+    setBulkLevelErrors(nextErrors);
+    setMessage(null);
+    setError(null);
+
+    if (bulkLevelFormHasErrors(nextErrors)) {
+      return;
+    }
+
+    try {
+      setIsBulkUpdatingLevel(true);
+      const result = await parkingSpotsApi.bulkUpdateLevel({
+        zoneId: bulkLevelValues.zoneId,
+        level: bulkLevelValues.level,
+        ...(bulkLevelValues.targetMode === "range"
+          ? {
+              range: {
+                from: Number(bulkLevelValues.rangeFrom),
+                to: Number(bulkLevelValues.rangeTo),
+              },
+            }
+          : {}),
+      });
+      setMessage(`Updated ${result.updatedCount} parking spots to ${result.level}.`);
+      await loadInventory();
+      setActiveSpotPanel("none");
+    } catch (bulkUpdateError) {
+      setError(getParkingInventoryErrorMessage(bulkUpdateError));
+    } finally {
+      setIsBulkUpdatingLevel(false);
     }
   }
 
@@ -708,6 +936,15 @@ export function AdminParkingInventoryPage({
         <div className="inventory-management-grid">
           <ParkingSpotsTable
             onCreate={startCreateSpot}
+            onOpenBulkLevel={() => {
+              setActiveSpotPanel("bulkLevel");
+              setSpotFormMode("create");
+              setSelectedSpot(null);
+              setSpotFormValues(createEmptySpotFormValues(inventory.zones[0]?.id ?? ""));
+              setSpotFormErrors({});
+              setMessage(null);
+              setError(null);
+            }}
             onDelete={(spot) => {
               setPendingDeleteSpot(spot);
               setPendingDeleteZone(null);
@@ -716,23 +953,56 @@ export function AdminParkingInventoryPage({
             }}
             onEdit={startEditSpot}
             spots={inventory.spots}
-            zones={inventory.zones}
-          />
-          <SpotEditorPanel
-            errors={spotFormErrors}
-            mode={spotFormMode}
-            onCancel={startCreateSpot}
-            onChange={(field, value) =>
-              setSpotFormValues((currentValues) => ({
-                ...currentValues,
-                [field]: value,
-              }))
+            pagination={inventory.spotPagination}
+            onNextPage={() =>
+              setSpotPage((currentPage) =>
+                Math.min(currentPage + 1, inventory.spotPagination.totalPages),
+              )
             }
-            onSubmit={() => void submitSpotForm()}
-            selectedSpot={selectedSpot}
-            values={spotFormValues}
+            onPreviousPage={() =>
+              setSpotPage((currentPage) => Math.max(currentPage - 1, 1))
+            }
             zones={inventory.zones}
           />
+          {shouldShowBulkLevelPanel(activeSpotPanel) ? (
+            <BulkLevelPanel
+              errors={bulkLevelErrors}
+              isSubmitting={isBulkUpdatingLevel}
+              onCancel={() => setActiveSpotPanel("none")}
+              onChange={(field, value) =>
+                setBulkLevelValues((currentValues) => ({
+                  ...currentValues,
+                  [field]: value,
+                }))
+              }
+              onSubmit={() => void submitBulkLevelUpdate()}
+              values={bulkLevelValues}
+              zones={inventory.zones}
+            />
+          ) : null}
+          {shouldShowSpotEditorPanel(activeSpotPanel) ? (
+            <SpotEditorPanel
+              errors={spotFormErrors}
+              mode={spotFormMode}
+              onCancel={() => {
+                setSpotFormMode("create");
+                setSelectedSpot(null);
+                setSpotFormValues(createEmptySpotFormValues(inventory.zones[0]?.id ?? ""));
+                setSpotFormErrors({});
+                setActiveSpotPanel("none");
+              }}
+              onChange={(field, value) =>
+                setSpotFormValues((currentValues) => ({
+                  ...currentValues,
+                  [field]: value,
+                }))
+              }
+              onSubmit={() => void submitSpotForm()}
+              selectedSpot={selectedSpot}
+              values={spotFormValues}
+              zones={inventory.zones}
+            />
+          ) : null}
         </div>
       )}
     </section>
@@ -759,7 +1029,8 @@ function ParkingZonesTable({
         </button>
       </div>
       <div className="inventory-row inventory-row-heading" role="row">
-        <span role="columnheader">Zone</span>
+        <span role="columnheader">Zone ID</span>
+        <span role="columnheader">Zone Name</span>
         <span role="columnheader">Capacity</span>
         <span role="columnheader">Available</span>
         <span role="columnheader">Status</span>
@@ -776,6 +1047,9 @@ function ParkingZonesTable({
 
         return (
           <div className="inventory-row" key={zone.id} role="row">
+            <span role="cell">
+              <strong>{zone.zoneCode}</strong>
+            </span>
             <span role="cell">
               <strong>{zone.name}</strong>
               {zone.description ? <small>{zone.description}</small> : null}
@@ -821,6 +1095,14 @@ function ZoneEditorPanel({
         {mode === "edit" ? "Edit Parking Zone" : "Create Parking Zone"}
       </h3>
       <TextField
+        error={errors.zoneCode}
+        label="Zone ID"
+        name="zoneCode"
+        onChange={(event) => onChange("zoneCode", event.target.value)}
+        placeholder="D"
+        value={values.zoneCode}
+      />
+      <TextField
         error={errors.name}
         label="Zone Name"
         name="zoneName"
@@ -853,6 +1135,19 @@ function ZoneEditorPanel({
         placeholder="120"
         value={values.distanceFromEntryMeters}
       />
+      <SelectField
+        label="Default spot level"
+        name="defaultSpotLevel"
+        onChange={(value) => onChange("defaultSpotLevel", value)}
+        value={values.defaultSpotLevel}
+      >
+        <option value="">No default (Standard)</option>
+        <option value="Ground">Ground</option>
+        <option value="Level 1">Level 1</option>
+        <option value="Level 2">Level 2</option>
+        <option value="Basement">Basement</option>
+        <option value="Outdoor">Outdoor</option>
+      </SelectField>
       <div className="zone-editor-actions">
         <button className="primary-button" onClick={onSubmit} type="button">
           {mode === "edit" ? "Save Zone" : "Create Zone"}
@@ -868,15 +1163,23 @@ function ZoneEditorPanel({
 }
 
 function ParkingSpotsTable({
+  onNextPage,
   onCreate,
+  onOpenBulkLevel,
   onDelete,
   onEdit,
+  onPreviousPage,
+  pagination,
   spots,
   zones,
 }: {
+  onNextPage: () => void;
   onCreate: () => void;
+  onOpenBulkLevel: () => void;
   onDelete: (spot: ParkingSpot) => void;
   onEdit: (spot: ParkingSpot) => void;
+  onPreviousPage: () => void;
+  pagination: ParkingSpotsPagination;
   spots: ParkingSpot[];
   zones: Array<ParkingZone & Partial<ZoneOccupancySummary>>;
 }) {
@@ -886,9 +1189,14 @@ function ParkingSpotsTable({
     <div className="inventory-table-card inventory-table-card-wide" role="table" aria-label="Parking spots">
       <div className="inventory-table-title inventory-table-title-actions">
         <span>Parking Spots</span>
-        <button className="secondary-button compact-button" onClick={onCreate} type="button">
-          Add Spot
-        </button>
+        <div className="inventory-table-actions">
+          <button className="secondary-button compact-button" onClick={onOpenBulkLevel} type="button">
+            Bulk Level Update
+          </button>
+          <button className="secondary-button compact-button" onClick={onCreate} type="button">
+            Add Spot
+          </button>
+        </div>
       </div>
       <div className="inventory-row inventory-row-heading inventory-row-spots" role="row">
         <span role="columnheader">Spot</span>
@@ -907,7 +1215,6 @@ function ParkingSpotsTable({
         <div className="inventory-row inventory-row-spots" key={spot.id} role="row">
           <span role="cell">
             <strong>{spot.spotCode}</strong>
-            <small>{spot.rowLabel ? `Row ${spot.rowLabel}` : "Row not set"}</small>
           </span>
           <span role="cell">{zoneNameById.get(spot.zoneId) ?? spot.zoneId}</span>
           <span role="cell">{spot.level ?? "Standard"}</span>
@@ -926,7 +1233,144 @@ function ParkingSpotsTable({
           </span>
         </div>
       ))}
+      <div className="inventory-pagination" aria-label="Parking spot pagination">
+        <button
+          className="secondary-button compact-button"
+          disabled={pagination.page <= 1}
+          onClick={onPreviousPage}
+          type="button"
+        >
+          Previous
+        </button>
+        <span>
+          Page {pagination.page} of {pagination.totalPages}
+        </span>
+        <button
+          className="secondary-button compact-button"
+          disabled={pagination.page >= pagination.totalPages}
+          onClick={onNextPage}
+          type="button"
+        >
+          Next
+        </button>
+      </div>
     </div>
+  );
+}
+
+function BulkLevelPanel({
+  errors,
+  isSubmitting,
+  onCancel,
+  onChange,
+  onSubmit,
+  values,
+  zones,
+}: {
+  errors: BulkLevelFormErrors;
+  isSubmitting: boolean;
+  onCancel: () => void;
+  onChange: (field: keyof BulkLevelFormValues, value: string) => void;
+  onSubmit: () => void;
+  values: BulkLevelFormValues;
+  zones: Array<ParkingZone & Partial<ZoneOccupancySummary>>;
+}) {
+  const rangePreview = getBulkLevelRangePreview(values, zones);
+
+  return (
+    <section className="zone-editor-panel" aria-labelledby="bulk-level-title">
+      <h3 id="bulk-level-title">Bulk Spot Level Update</h3>
+      <p className="selected-spot-copy">
+        Apply a level to every parking spot in the selected zone.
+      </p>
+      <fieldset className="bulk-target-group" aria-label="Apply to">
+        <legend className="form-label">Apply to</legend>
+        <label className="bulk-target-option">
+          <input
+            checked={values.targetMode === "all"}
+            name="bulkTargetMode"
+            onChange={() => onChange("targetMode", "all")}
+            type="radio"
+            value="all"
+          />
+          <span>All spots in this zone</span>
+        </label>
+        <label className="bulk-target-option">
+          <input
+            checked={values.targetMode === "range"}
+            name="bulkTargetMode"
+            onChange={() => onChange("targetMode", "range")}
+            type="radio"
+            value="range"
+          />
+          <span>Spot number range</span>
+        </label>
+      </fieldset>
+      <SelectField
+        error={errors.zoneId}
+        label="Zone"
+        name="bulkZone"
+        onChange={(value) => onChange("zoneId", value)}
+        value={values.zoneId}
+      >
+        <option value="">Choose zone</option>
+        {zones.map((zone) => (
+          <option key={zone.id} value={zone.id}>
+            {zone.name}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField
+        error={errors.level}
+        label="Level"
+        name="bulkLevel"
+        onChange={(value) => onChange("level", value)}
+        value={values.level}
+      >
+        <option value="">Choose level</option>
+        <option value="Ground">Ground</option>
+        <option value="Level 1">Level 1</option>
+        <option value="Level 2">Level 2</option>
+        <option value="Basement">Basement</option>
+        <option value="Outdoor">Outdoor</option>
+      </SelectField>
+      {values.targetMode === "range" ? (
+        <>
+          <TextField
+            error={errors.rangeFrom}
+            inputMode="numeric"
+            label="From number"
+            name="bulkRangeFrom"
+            onChange={(event) => onChange("rangeFrom", event.target.value)}
+            placeholder="1"
+            value={values.rangeFrom}
+          />
+          <TextField
+            error={errors.rangeTo}
+            inputMode="numeric"
+            label="To number"
+            name="bulkRangeTo"
+            onChange={(event) => onChange("rangeTo", event.target.value)}
+            placeholder="10"
+            value={values.rangeTo}
+          />
+          {rangePreview ? <p className="bulk-range-preview">{rangePreview}</p> : null}
+        </>
+      ) : null}
+      <div className="zone-editor-actions">
+        <button
+          className="primary-button"
+          disabled={isSubmitting || zones.length === 0}
+          onClick={onSubmit}
+          type="button"
+        >
+          {isSubmitting ? "Applying..." : "Apply Level"}
+        </button>
+        <button className="secondary-button" onClick={onCancel} type="button">
+          Cancel
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -980,8 +1424,13 @@ function SpotEditorPanel({
         label="Spot Code"
         name="spotCode"
         onChange={(event) => onChange("spotCode", event.target.value)}
-        placeholder="D-12"
-        value={values.spotCode}
+        placeholder="Generated when created"
+        readOnly={mode === "create"}
+        value={
+          mode === "create"
+            ? getGeneratedSpotCodePreviewText(values.spotCode)
+            : values.spotCode
+        }
       />
       <SelectField
         error={errors.status}
@@ -1003,13 +1452,6 @@ function SpotEditorPanel({
         placeholder="Ground"
         value={values.level}
       />
-      <TextField
-        label="Row Label"
-        name="spotRowLabel"
-        onChange={(event) => onChange("rowLabel", event.target.value)}
-        placeholder="D"
-        value={values.rowLabel}
-      />
       <div className="zone-editor-actions">
         <button
           className="primary-button"
@@ -1023,7 +1465,11 @@ function SpotEditorPanel({
           <button className="secondary-button" onClick={onCancel} type="button">
             Cancel
           </button>
-        ) : null}
+        ) : (
+          <button className="secondary-button" onClick={onCancel} type="button">
+            Cancel
+          </button>
+        )}
       </div>
     </section>
   );

@@ -8,6 +8,13 @@ const detectionEventSelect = {
   occurredAt: true,
   rawPayload: true,
   createdAt: true,
+  spot: {
+    select: {
+      id: true,
+      zoneId: true,
+      spotCode: true,
+    },
+  },
 } as const;
 
 const updatedParkingSpotSelect = {
@@ -28,15 +35,41 @@ export interface CreateDetectionEventRecordInput {
   rawPayload?: Prisma.InputJsonValue;
 }
 
+export interface ListDetectionEventFilters {
+  page: number;
+  pageSize: number;
+  spotId?: string;
+  type?: DetectionEventType;
+}
+
 export class DetectionEventRepository {
   constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
-  async listRecent(limit = 50) {
-    return this.prisma.detectionEvent.findMany({
-      orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
-      take: limit,
-      select: detectionEventSelect,
-    });
+  async listPaginated(filters: ListDetectionEventFilters) {
+    const where = {
+      spotId: filters.spotId,
+      type: filters.type,
+    };
+    const [detectionEvents, total] = await this.prisma.$transaction([
+      this.prisma.detectionEvent.findMany({
+        where,
+        orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }],
+        skip: (filters.page - 1) * filters.pageSize,
+        take: filters.pageSize,
+        select: detectionEventSelect,
+      }),
+      this.prisma.detectionEvent.count({ where }),
+    ]);
+
+    return {
+      detectionEvents,
+      pagination: {
+        page: filters.page,
+        pageSize: filters.pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / filters.pageSize)),
+      },
+    };
   }
 
   async createAndUpdateSpotStatus(

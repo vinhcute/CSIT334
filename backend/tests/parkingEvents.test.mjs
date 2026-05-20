@@ -103,6 +103,7 @@ async function seedUsers() {
 async function seedSpot() {
   const zone = await prisma.parkingZone.create({
     data: {
+      zoneCode: "PEA",
       name: "Parking Events Zone A",
       capacity: 2,
       parkingSpots: {

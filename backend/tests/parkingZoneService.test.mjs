@@ -9,6 +9,7 @@ const testZoneNames = [
   "Phase 3 Library Zone",
   "Phase 3 Engineering Zone",
   "Phase 3 Duplicate Zone",
+  "Phase 3 Duplicate Code Zone",
 ];
 
 async function cleanup() {
@@ -21,9 +22,13 @@ async function cleanup() {
 
 async function createService() {
   const { ParkingZoneRepository } = await import("../dist/repositories/parkingZoneRepository.js");
+  const { ParkingSpotRepository } = await import("../dist/repositories/parkingSpotRepository.js");
   const { ParkingZoneService } = await import("../dist/services/parkingZoneService.js");
 
-  return new ParkingZoneService(new ParkingZoneRepository(prisma));
+  return new ParkingZoneService(
+    new ParkingZoneRepository(prisma),
+    new ParkingSpotRepository(prisma),
+  );
 }
 
 test("ParkingZoneService creates parking zones with display fields", async () => {
@@ -32,6 +37,7 @@ test("ParkingZoneService creates parking zones with display fields", async () =>
 
   try {
     const zone = await parkingZoneService.createZone({
+      zoneCode: "PN",
       name: "Phase 3 North Zone",
       description: "North campus parking.",
       capacity: 24,
@@ -40,10 +46,19 @@ test("ParkingZoneService creates parking zones with display fields", async () =>
     });
 
     assert.equal(zone.name, "Phase 3 North Zone");
+    assert.equal(zone.zoneCode, "PN");
     assert.equal(zone.description, "North campus parking.");
     assert.equal(zone.capacity, 24);
     assert.equal(zone.distanceFromEntryMeters, 120);
     assert.equal(zone.displayOrder, 2);
+    const spots = await prisma.parkingSpot.findMany({
+      where: { zoneId: zone.id },
+      orderBy: { spotCode: "asc" },
+    });
+    assert.equal(spots.length, 24);
+    assert.equal(spots[0].spotCode, "PN-001");
+    assert.equal(spots[23].spotCode, "PN-024");
+    assert.equal(spots.every((spot) => spot.status === "available"), true);
   } finally {
     await cleanup();
   }
@@ -55,16 +70,19 @@ test("ParkingZoneService lists zones by display order and then name", async () =
 
   try {
     await parkingZoneService.createZone({
+      zoneCode: "PN",
       name: "Phase 3 North Zone",
       capacity: 10,
       displayOrder: 2,
     });
     await parkingZoneService.createZone({
+      zoneCode: "PL",
       name: "Phase 3 Library Zone",
       capacity: 10,
       displayOrder: 1,
     });
     await parkingZoneService.createZone({
+      zoneCode: "PE",
       name: "Phase 3 Engineering Zone",
       capacity: 10,
       displayOrder: 1,
@@ -88,6 +106,7 @@ test("ParkingZoneService updates parking zone display fields", async () => {
 
   try {
     const zone = await parkingZoneService.createZone({
+      zoneCode: "PN",
       name: "Phase 3 North Zone",
       description: "Original description.",
       capacity: 12,
@@ -119,6 +138,7 @@ test("ParkingZoneService rejects blank names and invalid capacity", async () => 
   await assert.rejects(
     () =>
       parkingZoneService.createZone({
+        zoneCode: "PA",
         name: "   ",
         capacity: 10,
       }),
@@ -128,6 +148,7 @@ test("ParkingZoneService rejects blank names and invalid capacity", async () => 
   await assert.rejects(
     () =>
       parkingZoneService.createZone({
+        zoneCode: "PA",
         name: "Phase 3 North Zone",
         capacity: 0,
       }),
@@ -144,6 +165,7 @@ test("ParkingZoneService returns a controlled duplicate name error", async () =>
 
   try {
     await parkingZoneService.createZone({
+      zoneCode: "PD",
       name: "Phase 3 Duplicate Zone",
       capacity: 10,
     });
@@ -151,10 +173,40 @@ test("ParkingZoneService returns a controlled duplicate name error", async () =>
     await assert.rejects(
       () =>
         parkingZoneService.createZone({
+          zoneCode: "PE",
           name: "Phase 3 Duplicate Zone",
           capacity: 20,
         }),
       (error) => error instanceof DuplicateParkingZoneNameError,
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
+test("ParkingZoneService normalises and rejects duplicate zone codes", async () => {
+  const {
+    DuplicateParkingZoneCodeError,
+  } = await import("../dist/services/parkingZoneService.js");
+  const parkingZoneService = await createService();
+  await cleanup();
+
+  try {
+    const zone = await parkingZoneService.createZone({
+      zoneCode: "  z ",
+      name: "Phase 3 Duplicate Zone",
+      capacity: 3,
+    });
+
+    assert.equal(zone.zoneCode, "Z");
+    await assert.rejects(
+      () =>
+        parkingZoneService.createZone({
+          zoneCode: "Z",
+          name: "Phase 3 Duplicate Code Zone",
+          capacity: 3,
+        }),
+      (error) => error instanceof DuplicateParkingZoneCodeError,
     );
   } finally {
     await cleanup();

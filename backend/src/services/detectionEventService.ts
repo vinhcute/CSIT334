@@ -13,6 +13,23 @@ const detectionEventSchema = z.object({
   occurredAt: z.coerce.date().optional(),
   rawPayload: z.unknown().optional(),
 });
+const listDetectionEventsSchema = z.object({
+  page: z.coerce
+    .number()
+    .int("Page must be a whole number.")
+    .min(1, "Page must be at least 1.")
+    .default(1),
+  pageSize: z.coerce
+    .number()
+    .int("Page size must be a whole number.")
+    .min(1, "Page size must be at least 1.")
+    .max(100, "Page size cannot exceed 100.")
+    .default(20),
+  spotId: z.string().trim().min(1, "Parking spot ID is required.").optional(),
+  type: z.enum(["vehicleEntry", "vehicleExit"], {
+    error: "Detection event type is invalid.",
+  }).optional(),
+});
 
 export type IngestDetectionEventInput = z.input<typeof detectionEventSchema>;
 
@@ -44,8 +61,16 @@ export class DetectionEventService {
     private readonly occupancyService = new OccupancyService(),
   ) {}
 
-  async listRecentDetectionEvents() {
-    return this.detectionEventRepository.listRecent();
+  async listRecentDetectionEvents(input: unknown = {}) {
+    const parsed = listDetectionEventsSchema.safeParse(input);
+
+    if (!parsed.success) {
+      throw new DetectionEventValidationError(
+        parsed.error.issues.map((issue) => issue.message),
+      );
+    }
+
+    return this.detectionEventRepository.listPaginated(parsed.data);
   }
 
   async ingestDetectionEvent(input: IngestDetectionEventInput) {

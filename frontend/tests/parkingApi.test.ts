@@ -106,11 +106,29 @@ describe("parking spots API client", () => {
     await parkingSpotsApi.listSpots({
       zoneId: "zone-1",
       status: "available",
+      page: 2,
+      pageSize: 20,
     });
 
     const fetchCall = firstFetchCall(fetchImpl);
-    expect(fetchCall[0]).toBe("/api/parking-spots?zoneId=zone-1&status=available");
+    expect(fetchCall[0]).toBe(
+      "/api/parking-spots?zoneId=zone-1&status=available&page=2&pageSize=20",
+    );
     expectAuthHeader(fetchCall);
+  });
+
+  it("loads the next generated spot code for a zone", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ spotCode: "B-021" }),
+    ) as unknown as typeof fetch;
+    const parkingSpotsApi = createParkingSpotsApi(createTestClient(fetchImpl));
+
+    await parkingSpotsApi.getNextSpotCode("zone-1");
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/admin/parking-zones/zone-1/next-spot-code",
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 
   it("lists spots for a zone route", async () => {
@@ -172,6 +190,51 @@ describe("parking spots API client", () => {
       3,
       "/api/admin/parking-spots/spot-1",
       expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("sends bulk level updates through the admin bulk endpoint", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ zoneId: "zone-1", level: "Level 2", updatedCount: 20 }),
+    ) as unknown as typeof fetch;
+    const parkingSpotsApi = createParkingSpotsApi(createTestClient(fetchImpl));
+
+    await parkingSpotsApi.bulkUpdateLevel({ zoneId: "zone-1", level: "Level 2" });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/admin/parking-spots/bulk-level",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ zoneId: "zone-1", level: "Level 2" }),
+      }),
+    );
+  });
+
+  it("sends range bulk level updates through the admin bulk endpoint", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ zoneId: "zone-1", level: "Level 2", updatedCount: 10 }),
+    ) as unknown as typeof fetch;
+    const parkingSpotsApi = createParkingSpotsApi(createTestClient(fetchImpl));
+
+    await parkingSpotsApi.bulkUpdateLevel({
+      zoneId: "zone-1",
+      level: "Level 2",
+      range: {
+        from: 1,
+        to: 10,
+      },
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/admin/parking-spots/bulk-level",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({
+          zoneId: "zone-1",
+          level: "Level 2",
+          range: { from: 1, to: 10 },
+        }),
+      }),
     );
   });
 });

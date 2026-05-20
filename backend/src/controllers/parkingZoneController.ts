@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import {
   DuplicateParkingZoneNameError,
+  DuplicateParkingZoneCodeError,
   ParkingZoneCapacityConflictError,
   ParkingZoneNotFoundError,
   ParkingZoneService,
@@ -66,6 +67,11 @@ export class ParkingZoneController {
     }
 
     if (error instanceof DuplicateParkingZoneNameError) {
+      response.status(409).json({ error: error.message });
+      return;
+    }
+
+    if (error instanceof DuplicateParkingZoneCodeError) {
       response.status(409).json({ error: error.message });
       return;
     }

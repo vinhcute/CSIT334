@@ -42,6 +42,10 @@ describe("admin users API client", () => {
             email: "admin@example.test",
             role: "admin",
             accountStatus: "active",
+            subscription: {
+              status: "subscribed",
+              endTime: "2026-05-24T00:00:00.000Z",
+            },
           },
         ],
       }),
@@ -56,6 +60,21 @@ describe("admin users API client", () => {
     expect(headers.get("authorization")).toBe("Bearer admin-token");
   });
 
+  it("sends pagination query parameters for user list", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({
+        users: [],
+        pagination: { page: 2, pageSize: 20, total: 0, totalPages: 1 },
+      }),
+    ) as unknown as typeof fetch;
+    const adminUsersApi = createAdminUsersApi(createTestClient(fetchImpl));
+
+    await adminUsersApi.listUsers({ page: 2, pageSize: 20 });
+
+    const fetchCall = vi.mocked(fetchImpl).mock.calls[0] as unknown as Parameters<typeof fetch>;
+    expect(fetchCall[0]).toBe("/api/admin/users?page=2&pageSize=20");
+  });
+
   it("disables and reactivates accounts with PATCH requests", async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse({
@@ -64,6 +83,10 @@ describe("admin users API client", () => {
           email: "driver@example.test",
           role: "driver",
           accountStatus: "disabled",
+          subscription: {
+            status: "notSubscribed",
+            endTime: null,
+          },
         },
       }),
     ) as unknown as typeof fetch;
@@ -95,5 +118,6 @@ describe("admin users API client", () => {
     });
 
     expect(summary).not.toHaveProperty("passwordHash");
+    expect(summary.subscription).toEqual({ status: "notSubscribed", endTime: null });
   });
 });

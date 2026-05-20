@@ -69,6 +69,7 @@ async function createFixture() {
   await prisma.parkingZone.create({
     data: {
       id: ids.zone,
+      zoneCode: "ST",
       name: "Schema Test Zone",
       description: "Zone used by schema verification tests.",
       capacity: 1,

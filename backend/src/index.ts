@@ -1,15 +1,21 @@
 import express from "express";
 import { pathToFileURL } from "node:url";
 import { getEnv } from "./config/env.js";
+import { createAnalyticsRouter } from "./routes/analytics.js";
 import { createAdminUsersRouter } from "./routes/adminUsers.js";
+import { createAdminBookingsRouter } from "./routes/adminBookings.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { createDetectionEventsRouter } from "./routes/detectionEvents.js";
 import { createHealthRouter } from "./routes/health.js";
+import { createIncidentReportsRouter } from "./routes/incidentReports.js";
+import { createBookingsRouter } from "./routes/bookings.js";
 import { createOccupancyRouter } from "./routes/occupancy.js";
 import { createParkingEventsRouter } from "./routes/parkingEvents.js";
 import { createPasswordRouter } from "./routes/password.js";
 import { createParkingSpotsRouter } from "./routes/parkingSpots.js";
 import { createParkingZonesRouter } from "./routes/parkingZones.js";
+import { createPredictiveAvailabilityRouter } from "./routes/predictiveAvailability.js";
+import { createRecommendationsRouter } from "./routes/recommendations.js";
 import { createSubscriptionsRouter } from "./routes/subscriptions.js";
 import { createUsersRouter } from "./routes/users.js";
 import { createVehicleProfilesRouter } from "./routes/vehicleProfiles.js";
@@ -29,12 +35,18 @@ export function createApp(dependencies: AppDependencies = {}): express.Express {
   app.use(createVehicleProfilesRouter());
   app.use(createSubscriptionsRouter());
   app.use(createPasswordRouter());
+  app.use(createBookingsRouter());
   app.use(createAdminUsersRouter());
+  app.use(createAdminBookingsRouter());
   app.use(createParkingZonesRouter());
   app.use(createParkingSpotsRouter());
   app.use(createDetectionEventsRouter());
   app.use(createOccupancyRouter());
   app.use(createParkingEventsRouter());
+  app.use(createRecommendationsRouter());
+  app.use(createPredictiveAvailabilityRouter());
+  app.use(createAnalyticsRouter());
+  app.use(createIncidentReportsRouter());
 
   return app;
 }

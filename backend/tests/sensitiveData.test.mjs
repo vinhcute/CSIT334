@@ -163,6 +163,7 @@ test("Admin account list omits vehicle profile details and licence plates", asyn
 
     assert.equal(adminList.statusCode, 200);
     assert.equal(hasKeyDeep(adminList.body, "vehicleProfiles"), false);
+    assert.equal(hasKeyDeep(adminList.body, "subscriptions"), false);
     assert.equal(JSON.stringify(adminList.body).includes(driverUser.licensePlate), false);
   } finally {
     await cleanup();

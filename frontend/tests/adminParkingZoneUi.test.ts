@@ -15,6 +15,7 @@ import type { ParkingZone } from "../src/services/parkingZonesApi.js";
 
 const zone: ParkingZone = {
   id: "zone-1",
+  zoneCode: "A",
   name: "Zone A",
   description: "North campus parking",
   capacity: 80,
@@ -36,13 +37,16 @@ describe("admin parking zone form UI rules", () => {
 
   it("builds create and edit zone form values", () => {
     expect(createEmptyZoneFormValues()).toEqual({
+      zoneCode: "",
       name: "",
       capacity: "",
       description: "",
       distanceFromEntryMeters: "",
       displayOrder: "",
+      defaultSpotLevel: "",
     });
     expect(createZoneFormValues(zone)).toMatchObject({
+      zoneCode: "A",
       name: "Zone A",
       capacity: "80",
       description: "North campus parking",
@@ -53,41 +57,50 @@ describe("admin parking zone form UI rules", () => {
 
   it("validates blank zone names and invalid capacity before submit", () => {
     const errors = validateZoneForm({
+      zoneCode: "",
       name: "   ",
       capacity: "0",
       description: "",
       distanceFromEntryMeters: "",
       displayOrder: "",
+      defaultSpotLevel: "",
     });
 
     expect(zoneFormHasErrors(errors)).toBe(true);
+    expect(errors.zoneCode).toBe("Zone ID is required");
     expect(errors.name).toBe("Zone name is required");
     expect(errors.capacity).toBe("Capacity must be at least 1");
   });
 
   it("validates optional numeric fields when provided", () => {
     const errors = validateZoneForm({
+      zoneCode: "north",
       name: "Zone B",
       capacity: "10",
       description: "",
       distanceFromEntryMeters: "-1",
       displayOrder: "1.5",
+      defaultSpotLevel: "",
     });
 
     expect(errors.distanceFromEntryMeters).toBe("Distance must be a whole number");
     expect(errors.displayOrder).toBe("Display order must be a whole number");
+    expect(errors.zoneCode).toBe("Zone ID must use 1 to 4 uppercase letters");
   });
 
   it("normalises form values into the backend request shape", () => {
     const request = toParkingZoneRequest({
+      zoneCode: "  c ",
       name: "  Zone C ",
       capacity: "42",
       description: "  Library parking ",
       distanceFromEntryMeters: "75",
       displayOrder: "",
+      defaultSpotLevel: "",
     });
 
     expect(request).toEqual({
+      zoneCode: "C",
       name: "Zone C",
       capacity: 42,
       description: "Library parking",

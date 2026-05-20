@@ -6,11 +6,17 @@ import {
 } from "./features/admin/AdminParkingInventoryPage.js";
 import { AdminSensorEventsPage } from "./features/admin/AdminSensorEventsPage.js";
 import { AdminUsersPage } from "./features/admin/AdminUsersPage.js";
+import { AdminBookingsPage } from "./features/admin/AdminBookingsPage.js";
+import { AdminAnalyticsPage } from "./features/admin/AdminAnalyticsPage.js";
+import { AdminIncidentManagementPage } from "./features/admin/AdminIncidentManagementPage.js";
 import { LoginPage } from "./features/auth/LoginPage.js";
 import { RegisterPage } from "./features/auth/RegisterPage.js";
 import { useAuthState } from "./features/auth/authState.js";
 import { ParkingDashboardPage } from "./features/parking/ParkingDashboardPage.js";
+import { CreateBookingPage } from "./features/parking/CreateBookingPage.js";
+import { MyBookingsPage } from "./features/parking/MyBookingsPage.js";
 import { ParkingMapPage } from "./features/parking/ParkingMapPage.js";
+import { ReportIssuePage } from "./features/parking/ReportIssuePage.js";
 import type { UserRole } from "./features/auth/authTypes.js";
 
 const driverSidebarItems = [
@@ -39,7 +45,8 @@ const adminSidebarItems = [
 
 type DriverSection = (typeof driverSidebarItems)[number];
 type AdminSection = (typeof adminSidebarItems)[number];
-type AppSection = DriverSection | AdminSection;
+type VirtualSection = "Create Booking";
+type AppSection = DriverSection | AdminSection | VirtualSection;
 
 const accountViewBySection: Partial<Record<AppSection, AccountView>> = {
   "My Vehicles": "Vehicles",
@@ -51,6 +58,7 @@ export function App() {
   const [authView, setAuthView] = useState<"login" | "register">("login");
   const [activeSection, setActiveSection] = useState<AppSection>("Dashboard");
   const [registrationMessage, setRegistrationMessage] = useState<string | null>(null);
+  const [selectedBookingSpotId, setSelectedBookingSpotId] = useState<string | null>(null);
   const isAuthenticated = status === "authenticated" && user;
 
   if (status === "loading" || status === "idle") {
@@ -85,7 +93,10 @@ export function App() {
 
   const sidebarItems = getSidebarItems(user.role);
   const primarySidebarItems = sidebarItems.filter((item) => item !== "Settings" && item !== "Logout");
-  const effectiveSection = sidebarItems.includes(activeSection) ? activeSection : "Dashboard";
+  const effectiveSection =
+    activeSection === "Create Booking" || sidebarItems.includes(activeSection)
+      ? activeSection
+      : "Dashboard";
   const pageTitle = getPageTitle(effectiveSection);
 
   return (
@@ -150,7 +161,23 @@ export function App() {
         {effectiveSection === "Dashboard" ? (
           <ParkingDashboardPage />
         ) : effectiveSection === "Parking Map" ? (
-          <ParkingMapPage />
+          <ParkingMapPage
+            onStartBooking={(spotId) => {
+              setSelectedBookingSpotId(spotId);
+              setActiveSection("Create Booking");
+            }}
+            viewerRole={user.role}
+          />
+        ) : effectiveSection === "Create Booking" ? (
+          <CreateBookingPage
+            onBackToMap={() => setActiveSection("Parking Map")}
+            onOpenMyBookings={() => setActiveSection("My Bookings")}
+            selectedSpotId={selectedBookingSpotId}
+          />
+        ) : effectiveSection === "My Bookings" ? (
+          <MyBookingsPage />
+        ) : effectiveSection === "Report Issue" ? (
+          <ReportIssuePage />
         ) : effectiveSection === "Users" ? (
           <AdminUsersPage />
         ) : isAdminParkingInventorySection(effectiveSection) ? (
@@ -160,6 +187,12 @@ export function App() {
           />
         ) : effectiveSection === "Sensors" ? (
           <AdminSensorEventsPage />
+        ) : effectiveSection === "Bookings" ? (
+          <AdminBookingsPage />
+        ) : effectiveSection === "Incidents" ? (
+          <AdminIncidentManagementPage />
+        ) : effectiveSection === "Analytics" ? (
+          <AdminAnalyticsPage />
         ) : effectiveSection === "Settings" ? (
           <DeferredState title="Settings" />
         ) : user.role === "admin" ? (
@@ -199,6 +232,10 @@ function getPageTitle(section: AppSection): string {
     return "Simulated Sensor Events";
   }
 
+  if (section === "Bookings") {
+    return "Bookings";
+  }
+
   if (section === "My Vehicles") {
     return "Vehicles";
   }
@@ -222,17 +259,22 @@ function shouldShowDefaultIntro(section: AppSection): boolean {
   return (
     section !== "Dashboard" &&
     section !== "Parking Map" &&
+    section !== "Create Booking" &&
+    section !== "Report Issue" &&
     section !== "Users" &&
     section !== "Sensors" &&
+    section !== "Bookings" &&
+    section !== "Incidents" &&
+    section !== "Analytics" &&
     !isAdminParkingInventorySection(section)
   );
 }
 
-function DeferredState({ title }: { title: string }) {
+function DeferredState({ description, title }: { description?: string; title: string }) {
   return (
     <section className="account-state account-state-empty">
       <h2>{title}</h2>
-      <p>This screen will be added in a later verification loop.</p>
+      <p>{description ?? "This screen will be added in a later verification loop."}</p>
     </section>
   );
 }

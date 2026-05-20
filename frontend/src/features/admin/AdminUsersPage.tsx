@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AccountStatus, SafeUser } from "../auth/authTypes.js";
 import { useAuthState } from "../auth/authState.js";
 import { createApiClient } from "../../services/apiClient.js";
+import { PaginationControls } from "../../components/PaginationControls.js";
 import {
   createAdminUsersApi,
   type AdminUserSummary,
@@ -16,6 +17,8 @@ interface PendingAccountAction {
   action: AdminAccountAction;
   user: AdminUserSummary;
 }
+
+const USERS_PAGE_SIZE = 20;
 
 export function canViewAdminUsers(user: SafeUser | null | undefined): boolean {
   return user?.role === "admin";
@@ -33,10 +36,21 @@ export function userSummaryHasSensitiveFields(user: Record<string, unknown>): bo
   return "passwordHash" in user;
 }
 
+export function getSubscriptionDisplayText(user: AdminUserSummary): string {
+  if (user.subscription.status !== "subscribed" || !user.subscription.endTime) {
+    return "Not subscribed";
+  }
+
+  return `Subscribed until ${formatSubscriptionDate(user.subscription.endTime)}`;
+}
+
 export function AdminUsersPage() {
   const { user } = useAuthState();
   const adminUsersApi = useMemo(() => createAdminUsersApi(sharedApiClient), []);
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState("");
   const [status, setStatus] = useState<AdminUsersStatus>("loading");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,14 +65,19 @@ export function AdminUsersPage() {
     setError(null);
 
     try {
-      const result = await adminUsersApi.listUsers();
+      const result = await adminUsersApi.listUsers({
+        page,
+        pageSize: USERS_PAGE_SIZE,
+        search: search.trim() || undefined,
+      });
       setUsers(result.users);
+      setTotalPages(result.pagination.totalPages);
       setStatus(result.users.length > 0 ? "ready" : "empty");
     } catch {
       setStatus("error");
       setError("Unable to load account summaries. Please retry after checking the API server.");
     }
-  }, [adminUsersApi, user]);
+  }, [adminUsersApi, page, search, user]);
 
   useEffect(() => {
     void loadUsers();
@@ -131,6 +150,19 @@ export function AdminUsersPage() {
         <h2 id="admin-users-title">User Account Management</h2>
         <p>View, disable, and reactivate driver accounts.</p>
       </div>
+      <label className="form-field" htmlFor="adminUsersSearch">
+        <span className="form-label">Search</span>
+        <input
+          id="adminUsersSearch"
+          onChange={(event) => {
+            setSearch(event.target.value);
+            setPage(1);
+          }}
+          placeholder="Search name, email, or university ID"
+          type="search"
+          value={search}
+        />
+      </label>
 
       {message ? <p className="form-success">{message}</p> : null}
       {error ? <p className="form-banner-error">{error}</p> : null}
@@ -176,6 +208,7 @@ export function AdminUsersPage() {
             <span role="columnheader">Email</span>
             <span role="columnheader">Role</span>
             <span role="columnheader">Status</span>
+            <span role="columnheader">Subscription</span>
             <span role="columnheader">Action</span>
           </div>
           {users.map((account) => {
@@ -194,6 +227,7 @@ export function AdminUsersPage() {
                     {formatLabel(account.accountStatus)}
                   </span>
                 </span>
+                <span role="cell">{getSubscriptionDisplayText(account)}</span>
                 <span role="cell">
                   <button
                     className={action === "disable" ? "danger-button" : "secondary-button"}
@@ -208,6 +242,14 @@ export function AdminUsersPage() {
           })}
         </div>
       )}
+      <PaginationControls
+        currentPage={page}
+        label="Admin users pagination"
+        loading={false}
+        onNext={() => setPage((current) => Math.min(current + 1, totalPages))}
+        onPrevious={() => setPage((current) => Math.max(current - 1, 1))}
+        totalPages={totalPages}
+      />
     </section>
   );
 }
@@ -218,4 +260,13 @@ function getDisplayName(user: AdminUserSummary) {
 
 function formatLabel(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatSubscriptionDate(value: string): string {
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Australia/Sydney",
+  }).format(new Date(value));
 }

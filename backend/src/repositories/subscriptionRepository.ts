@@ -33,6 +33,19 @@ export class SubscriptionRepository {
     });
   }
 
+  async findActiveCoveringWindow(userId: string, startTime: Date, endTime: Date) {
+    return this.prisma.subscription.findFirst({
+      where: {
+        userId,
+        status: "active",
+        startTime: { lte: startTime },
+        endTime: { gte: endTime },
+      },
+      orderBy: { endTime: "desc" },
+      select: safeSubscriptionSelect,
+    });
+  }
+
   async createActive(input: CreateSubscriptionInput) {
     return this.prisma.subscription.create({
       data: {

@@ -27,6 +27,7 @@ async function createService() {
 async function createZoneWithSpots() {
   return prisma.parkingZone.create({
     data: {
+      zoneCode: "OSA",
       name: "Occupancy Service Zone A",
       capacity: 8,
       parkingSpots: {
