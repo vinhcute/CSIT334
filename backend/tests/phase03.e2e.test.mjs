@@ -26,7 +26,9 @@ const testZoneNames = ["Phase 03 E2E Zone", "Phase 03 E2E Zone Updated"];
 
 async function cleanup() {
   await prisma.parkingZone.deleteMany({
-    where: { name: { in: testZoneNames } },
+    where: {
+      OR: [{ name: { in: testZoneNames } }, { zoneCode: "PTH" }],
+    },
   });
   await prisma.user.deleteMany({
     where: {
@@ -214,6 +216,7 @@ test("Phase 03 end-to-end parking inventory and monitoring path works", async ()
       method: "POST",
       headers: authHeaders(adminToken),
       body: {
+        zoneCode: "PTH",
         name: "Phase 03 E2E Zone",
         description: "End-to-end verification zone",
         capacity: 3,
@@ -224,6 +227,14 @@ test("Phase 03 end-to-end parking inventory and monitoring path works", async ()
     assert.equal(createdZone.statusCode, 201);
     assert.equal(createdZone.body.parkingZone.name, "Phase 03 E2E Zone");
     const zoneId = createdZone.body.parkingZone.id;
+    const generatedSpots = await prisma.parkingSpot.findMany({
+      where: { zoneId },
+      orderBy: { spotCode: "asc" },
+    });
+    assert.equal(generatedSpots.length, 3);
+    const availableSpotId = generatedSpots[0].id;
+    const maintenanceCandidateId = generatedSpots[1].id;
+    const deleteCandidateId = generatedSpots[2].id;
 
     const driverZones = await request(baseUrl, "/api/parking-zones", {
       headers: authHeaders(driverToken),
@@ -255,48 +266,6 @@ test("Phase 03 end-to-end parking inventory and monitoring path works", async ()
     });
     assert.equal(driverSpotMutation.statusCode, 403);
 
-    const createdSpot = await request(baseUrl, "/api/admin/parking-spots", {
-      method: "POST",
-      headers: authHeaders(adminToken),
-      body: {
-        zoneId,
-        spotCode: "P3-001",
-        status: "available",
-        level: "Ground",
-        rowLabel: "P3",
-      },
-    });
-    assert.equal(createdSpot.statusCode, 201);
-    assert.equal(createdSpot.body.parkingSpot.status, "available");
-    const availableSpotId = createdSpot.body.parkingSpot.id;
-
-    const reservedSpot = await request(baseUrl, "/api/admin/parking-spots", {
-      method: "POST",
-      headers: authHeaders(adminToken),
-      body: {
-        zoneId,
-        spotCode: "P3-002",
-        status: "reserved",
-        level: "Ground",
-        rowLabel: "P3",
-      },
-    });
-    assert.equal(reservedSpot.statusCode, 201);
-    const reservedSpotId = reservedSpot.body.parkingSpot.id;
-
-    const deleteCandidate = await request(baseUrl, "/api/admin/parking-spots", {
-      method: "POST",
-      headers: authHeaders(adminToken),
-      body: {
-        zoneId,
-        spotCode: "P3-DELETE",
-        status: "available",
-        level: "Ground",
-        rowLabel: "P3",
-      },
-    });
-    assert.equal(deleteCandidate.statusCode, 201);
-
     const invalidSpotStatus = await request(baseUrl, "/api/admin/parking-spots", {
       method: "POST",
       headers: authHeaders(adminToken),
@@ -310,7 +279,7 @@ test("Phase 03 end-to-end parking inventory and monitoring path works", async ()
 
     const updatedSpot = await request(
       baseUrl,
-      `/api/admin/parking-spots/${reservedSpotId}`,
+      `/api/admin/parking-spots/${maintenanceCandidateId}`,
       {
         method: "PATCH",
         headers: authHeaders(adminToken),
@@ -326,18 +295,22 @@ test("Phase 03 end-to-end parking inventory and monitoring path works", async ()
 
     const deletedSpot = await request(
       baseUrl,
-      `/api/admin/parking-spots/${deleteCandidate.body.parkingSpot.id}`,
+      `/api/admin/parking-spots/${deleteCandidateId}`,
       {
         method: "DELETE",
         headers: authHeaders(adminToken),
       },
     );
     assert.equal(deletedSpot.statusCode, 200);
-    assert.equal(deletedSpot.body.parkingSpot.spotCode, "P3-DELETE");
+    assert.equal(deletedSpot.body.parkingSpot.spotCode, generatedSpots[2].spotCode);
 
-    const driverSpots = await request(baseUrl, "/api/parking-spots", {
-      headers: authHeaders(driverToken),
-    });
+    const driverSpots = await request(
+      baseUrl,
+      `/api/parking-spots?zoneId=${encodeURIComponent(zoneId)}`,
+      {
+        headers: authHeaders(driverToken),
+      },
+    );
     assert.equal(driverSpots.statusCode, 200);
     assert.ok(driverSpots.body.parkingSpots.some((spot) => spot.id === availableSpotId));
 

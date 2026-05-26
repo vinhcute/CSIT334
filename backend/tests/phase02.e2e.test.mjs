@@ -232,9 +232,13 @@ test("Phase 02 end-to-end identity and account-management path works", async () 
     });
     assert.equal(driverAdminAccess.statusCode, 403);
 
-    const adminUsers = await request(app, "/api/admin/users", {
-      headers: authHeaders(adminToken),
-    });
+    const adminUsers = await request(
+      app,
+      `/api/admin/users?search=${encodeURIComponent(driverInput.universityId)}`,
+      {
+        headers: authHeaders(adminToken),
+      },
+    );
     assert.equal(adminUsers.statusCode, 200);
     assertNoPasswordHash(adminUsers.body);
     const driverAccount = adminUsers.body.users.find(

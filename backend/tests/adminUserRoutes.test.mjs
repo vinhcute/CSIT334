@@ -142,7 +142,7 @@ test("Admin can list user account summaries without passwordHash", async () => {
 
   try {
     const token = await adminToken(app);
-    const result = await request(app, "/api/admin/users", {
+    const result = await request(app, "/api/admin/users?search=admin-routes", {
       headers: { authorization: `Bearer ${token}` },
     });
     const emails = result.body.users.map((user) => user.email);

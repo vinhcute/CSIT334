@@ -71,6 +71,9 @@ async function cleanup() {
         { email: adminUser.email },
         { email: driverOne.email },
         { email: driverTwo.email },
+        { universityId: adminUser.universityId },
+        { universityId: driverOne.universityId },
+        { universityId: driverTwo.universityId },
       ],
     },
   });
