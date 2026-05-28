@@ -44,7 +44,7 @@ export class PredictionRepository {
 
   async listRecentHistory(
     zoneId: string,
-    limit = 240,
+    limit = 24 * 7 * 9,
   ): Promise<PredictionOccupancyHistoryRecord[]> {
     return this.prisma.occupancyHistory.findMany({
       where: { zoneId },

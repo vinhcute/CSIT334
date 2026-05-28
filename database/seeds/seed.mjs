@@ -153,16 +153,21 @@ const detectionEvents = Array.from({ length: 100 }, (_, index) => {
   };
 });
 
+const occupancyHistoryWeeks = 9;
+const hoursPerWeek = 24 * 7;
+
 const occupancyHistory = zones.flatMap((zone, zoneIndex) =>
-  Array.from({ length: 24 }, (_, hourIndex) => {
-    const occupiedSpots = (zoneIndex * 3 + hourIndex * 2) % (zone.capacity + 1);
-    const reservedSpots = hourIndex % 4;
+  Array.from({ length: occupancyHistoryWeeks * hoursPerWeek }, (_, historyIndex) => {
+    const weekIndex = Math.floor(historyIndex / hoursPerWeek);
+    const hourIndex = historyIndex % hoursPerWeek;
+    const occupiedSpots = (zoneIndex * 3 + hourIndex * 2 + weekIndex) % (zone.capacity + 1);
+    const reservedSpots = (hourIndex + weekIndex) % 4;
     const availableSpots = Math.max(zone.capacity - occupiedSpots - reservedSpots, 0);
     const occupancyRate = (((occupiedSpots + reservedSpots) / zone.capacity) * 100).toFixed(2);
     return {
-      id: `occupancy-${zoneIndex + 1}-${pad(hourIndex + 1)}`,
+      id: `occupancy-${zoneIndex + 1}-${pad(historyIndex + 1)}`,
       zoneId: zone.id,
-      recordedAt: addHours(baseDate, hourIndex),
+      recordedAt: addHours(baseDate, historyIndex),
       capacity: zone.capacity,
       availableSpots,
       occupiedSpots,
