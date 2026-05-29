@@ -2,26 +2,35 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { SafeUser, VehicleProfile } from "../auth/authTypes.js";
 import { useAuthState } from "../auth/authState.js";
 import { createApiClient } from "../../services/apiClient.js";
-import { createAccountApi, type VehicleProfileRequest } from "../../services/accountApi.js";
+import {
+  createAccountApi,
+  type UpdateProfileRequest,
+  type VehicleProfileRequest,
+} from "../../services/accountApi.js";
 import { createSubscriptionApi } from "../../services/subscriptionApi.js";
 import { VehicleProfilesPanel } from "./VehicleProfilesPanel.js";
 import { SubscriptionPanel } from "./SubscriptionPanel.js";
+import {
+  getProfileSettingsErrorMessage,
+  ProfileSettingsPanel,
+} from "./ProfileSettingsPanel.js";
 
 const sharedApiClient = createApiClient();
 
-export type AccountView = "Dashboard" | "Account" | "Vehicles" | "Subscription";
+export type AccountView = "Dashboard" | "Account" | "Vehicles" | "Subscription" | "Settings";
 
 interface ProfilePageProps {
   view?: AccountView;
 }
 
 export function ProfilePage({ view = "Dashboard" }: ProfilePageProps) {
-  const { user } = useAuthState();
+  const { updateCurrentUser, user } = useAuthState();
   const accountApi = useMemo(() => createAccountApi(sharedApiClient), []);
   const subscriptionApi = useMemo(() => createSubscriptionApi(sharedApiClient), []);
   const [profile, setProfile] = useState<SafeUser | null>(user);
   const [vehicleProfiles, setVehicleProfiles] = useState<VehicleProfile[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,6 +82,24 @@ export function ProfilePage({ view = "Dashboard" }: ProfilePageProps) {
     }
   }
 
+  async function handleSaveProfile(input: UpdateProfileRequest) {
+    setMessage(null);
+    setError(null);
+    setIsSavingProfile(true);
+
+    try {
+      const result = await accountApi.updateCurrentProfile(input);
+      setProfile(result.user);
+      updateCurrentUser(result.user);
+      setMessage("Profile details updated.");
+    } catch (saveError) {
+      setError(getProfileSettingsErrorMessage(saveError));
+      throw saveError;
+    } finally {
+      setIsSavingProfile(false);
+    }
+  }
+
   if (status === "loading") {
     return <AccountStateCard title="Loading account data..." variant="loading" />;
   }
@@ -92,11 +119,15 @@ export function ProfilePage({ view = "Dashboard" }: ProfilePageProps) {
 
   return (
     <section className="account-page" aria-labelledby="account-title">
-      {view === "Dashboard" || view === "Account" ? (
+      {view === "Dashboard" || view === "Account" || view === "Settings" ? (
         <div className="account-header">
           <div>
-            <p className="eyebrow">Current Profile</p>
-            <h1 id="account-title">{profile?.name ?? "UniPark Account"}</h1>
+            <p className="eyebrow">
+              {view === "Settings" ? "Account Settings" : "Current Profile"}
+            </p>
+            <h1 id="account-title">
+              {view === "Settings" ? "Settings" : profile?.name ?? "UniPark Account"}
+            </h1>
             <p>{getViewSummary(view)}</p>
           </div>
         </div>
@@ -127,6 +158,16 @@ export function ProfilePage({ view = "Dashboard" }: ProfilePageProps) {
       {view === "Subscription" ? (
         <div className="account-single-panel">
           <SubscriptionPanel subscriptionApi={subscriptionApi} />
+        </div>
+      ) : null}
+
+      {view === "Settings" ? (
+        <div className="account-single-panel">
+          <ProfileSettingsPanel
+            isSaving={isSavingProfile}
+            onSave={handleSaveProfile}
+            profile={profile}
+          />
         </div>
       ) : null}
     </section>
@@ -196,6 +237,10 @@ function getVehicleErrorMessage(error: unknown): string {
 }
 
 function getViewSummary(view: AccountView): string {
+  if (view === "Settings") {
+    return "Edit your profile details for this admin or driver account.";
+  }
+
   if (view === "Account") {
     return "Review your authenticated UniPark account details.";
   }

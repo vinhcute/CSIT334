@@ -73,6 +73,28 @@ describe("account API client", () => {
     );
   });
 
+  it("updates current profile details with the expected endpoint", async () => {
+    const input = {
+      name: "Updated Driver",
+      email: "updated@example.test",
+      universityId: "UPDATED001",
+    };
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ user: { id: "user-1", ...input } }),
+    ) as unknown as typeof fetch;
+    const accountApi = createAccountApi(createTestClient(fetchImpl));
+
+    await accountApi.updateCurrentProfile(input);
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/api/users/me",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify(input),
+      }),
+    );
+  });
+
   it("updates vehicle profiles with the expected endpoint", async () => {
     const input = {
       licensePlate: "ABC-456",

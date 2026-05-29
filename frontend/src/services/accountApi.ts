@@ -1,6 +1,12 @@
 import type { CurrentUserResponse, VehicleProfile } from "../features/auth/authTypes.js";
 import { createApiClient } from "./apiClient.js";
 
+export interface UpdateProfileRequest {
+  name: string;
+  email: string;
+  universityId: string;
+}
+
 export interface VehicleProfileRequest {
   licensePlate: string;
   vehicleMake?: string;
@@ -23,6 +29,14 @@ export function createAccountApi(apiClient: AccountApiClient = createApiClient()
   return {
     getCurrentProfile(): Promise<CurrentUserResponse> {
       return apiClient.request<CurrentUserResponse>("/api/users/me", {
+        authenticated: true,
+      });
+    },
+
+    updateCurrentProfile(input: UpdateProfileRequest): Promise<CurrentUserResponse> {
+      return apiClient.request<CurrentUserResponse>("/api/users/me", {
+        method: "PATCH",
+        body: input,
         authenticated: true,
       });
     },

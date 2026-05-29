@@ -11,6 +11,7 @@ export function createUsersRouter(
   const controller = new UserController(userRepository);
 
   router.get("/api/users/me", authMiddleware, controller.me);
+  router.patch("/api/users/me", authMiddleware, controller.updateMe);
 
   return router;
 }

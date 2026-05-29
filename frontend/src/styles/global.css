@@ -2496,6 +2496,50 @@ button:disabled {
   grid-column: 1 / -1;
 }
 
+.settings-card {
+  max-width: 760px;
+}
+
+.settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-form .form-field:first-child,
+.settings-readonly-grid,
+.settings-form .primary-button {
+  grid-column: 1 / -1;
+}
+
+.settings-readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settings-readonly-grid div {
+  display: grid;
+  gap: 8px;
+  min-height: 66px;
+  padding: 11px 14px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-soft-surface);
+}
+
+.settings-readonly-grid span {
+  color: var(--color-muted);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.settings-readonly-grid strong {
+  color: var(--color-heading);
+  font-size: 0.8125rem;
+}
+
 .empty-state {
   padding: 24px;
   border: 1px solid var(--color-border);
@@ -2701,6 +2745,8 @@ button:disabled {
   .account-grid,
   .profile-list,
   .vehicle-form,
+  .settings-form,
+  .settings-readonly-grid,
   .admin-users-row {
     grid-template-columns: 1fr;
   }

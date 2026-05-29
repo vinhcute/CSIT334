@@ -26,6 +26,7 @@ export interface AuthStateValue {
   login(input: LoginRequest): Promise<void>;
   logout(): Promise<void>;
   refreshCurrentUser(): Promise<void>;
+  updateCurrentUser(user: SafeUser): void;
 }
 
 interface AuthProviderProps {
@@ -127,6 +128,10 @@ export function AuthProvider({ children, apiClient, tokenStore }: AuthProviderPr
     }
   }, [authApi, client, syncToken]);
 
+  const updateCurrentUser = useCallback((nextUser: SafeUser) => {
+    setUser(nextUser);
+  }, []);
+
   useEffect(() => {
     if (!token || user || status !== "idle") {
       return;
@@ -147,8 +152,9 @@ export function AuthProvider({ children, apiClient, tokenStore }: AuthProviderPr
       login,
       logout,
       refreshCurrentUser,
+      updateCurrentUser,
     }),
-    [error, login, logout, refreshCurrentUser, register, status, token, user],
+    [error, login, logout, refreshCurrentUser, register, status, token, updateCurrentUser, user],
   );
 
   return <AuthStateContext.Provider value={value}>{children}</AuthStateContext.Provider>;

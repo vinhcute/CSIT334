@@ -13,6 +13,12 @@ export interface CreateDriverWithVehicleInput {
   vehicleColor?: string;
 }
 
+export interface UpdateUserProfileInput {
+  name: string;
+  email: string;
+  universityId: string;
+}
+
 export class UserRepository {
   constructor(private readonly prisma: PrismaClient = defaultPrisma) {}
 
@@ -90,6 +96,18 @@ export class UserRepository {
     return this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash },
+      select: safeUserSelect,
+    });
+  }
+
+  async updateProfile(userId: string, input: UpdateUserProfileInput) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: input.name,
+        email: input.email,
+        universityId: input.universityId,
+      },
       select: safeUserSelect,
     });
   }

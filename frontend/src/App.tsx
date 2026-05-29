@@ -194,7 +194,7 @@ export function App() {
         ) : effectiveSection === "Analytics" ? (
           <AdminAnalyticsPage />
         ) : effectiveSection === "Settings" ? (
-          <DeferredState title="Settings" />
+          <ProfilePage view="Settings" />
         ) : user.role === "admin" ? (
           <DeferredState title={pageTitle} />
         ) : accountViewBySection[effectiveSection] ? (
@@ -266,6 +266,7 @@ function shouldShowDefaultIntro(section: AppSection): boolean {
     section !== "Bookings" &&
     section !== "Incidents" &&
     section !== "Analytics" &&
+    section !== "Settings" &&
     !isAdminParkingInventorySection(section)
   );
 }
